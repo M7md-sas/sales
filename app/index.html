@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <!-- [4.2] Content-Security-Policy (DEVIATIONS.md #19). If the Supabase project
+       ever moves to a custom domain, add that domain to img-src and connect-src. -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' blob: data: https://*.supabase.co http://localhost:5174 http://127.0.0.1:5174; connect-src 'self' data: blob: https://*.supabase.co wss://*.supabase.co http://localhost:5174 http://127.0.0.1:5174; worker-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>مبيعات المحل</title>
+
+  <meta name="theme-color" content="#1F6F8B">
+  <meta name="description" content="تصوير دفتر المبيعات اليومي وإرساله">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="المبيعات">
+  <!-- The worker's phone must never surface this page in a search result. -->
+  <meta name="robots" content="noindex, nofollow">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
+
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/worker.css">
+</head>
+
+<body>
+<div class="app" id="app">
+
+  <!-- Offline / queued banner. Guide 4.2 — persistent, with a manual retry. -->
+  <div class="banner hidden" id="offline-banner">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="2" stroke-linecap="round" aria-hidden="true">
+      <path d="M12 20h.01M8.5 16.4a5 5 0 0 1 7 0M5 12.9a10 10 0 0 1 14 0M2 9.4a15 15 0 0 1 20 0"/>
+      <line x1="2" y1="2" x2="22" y2="22"/>
+    </svg>
+    <span class="grow" id="offline-text">لم يتم الإرسال بعد — سيتم تلقائياً عند رجوع الشبكة</span>
+    <button class="btn btn--quiet small" id="offline-retry" type="button">حاول الآن</button>
+  </div>
+
+  <!-- [4.2] A photo the server refused for good (too old, day already
+       approved). Stays until dismissed, so a lost day is never silent. -->
+  <div class="notice hidden" id="dropped-notice" role="alert">
+    <span class="grow" id="dropped-text"></span>
+    <button class="btn btn--quiet small" id="dropped-dismiss" type="button">تمام</button>
+  </div>
+
+  <!-- ============ 1. SIGN IN ============ -->
+  <section class="screen" id="screen-signin" aria-label="تسجيل الدخول">
+    <div id="signin-mount"></div>
+  </section>
+
+  <!-- ============ 2. CAPTURE ============
+       One job, one button. Nothing competing for attention (guide 4.1). -->
+  <section class="screen" id="screen-capture" aria-label="تصوير الدفتر">
+    <header class="capture__head">
+      <p class="capture__weekday" id="capture-weekday"></p>
+      <h1 class="capture__date" id="capture-date"></h1>
+    </header>
+
+    <div class="capture__body">
+      <button class="shutter" id="btn-capture" type="button">
+        <span class="shutter__ring">
+          <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+            <circle cx="12" cy="13" r="4"/>
+          </svg>
+        </span>
+        <span class="shutter__label">صوّر الدفتر</span>
+      </button>
+      <p class="capture__hint" id="capture-hint">صوّر صفحة اليوم من الدفتر كاملة، وخلّ الأرقام واضحة</p>
+    </div>
+
+    <footer class="capture__foot">
+      <button class="btn btn--quiet small muted" id="btn-signout" type="button">تسجيل الخروج</button>
+    </footer>
+
+    <!-- capture="environment" is what opens the rear camera on iPhone. Appendix C. -->
+    <input type="file" id="file-input" accept="image/*" capture="environment" hidden>
+  </section>
+
+  <!-- ============ 2b. IN-APP CAMERA ============
+       Live view from the rear camera, one shutter. Falls back to the
+       phone's own camera (the file input above) when not available. -->
+  <section class="screen camera" id="screen-camera" aria-label="الكاميرا">
+    <div class="camera__view">
+      <video id="camera-video" playsinline muted autoplay></video>
+      <div class="camera__frame" aria-hidden="true"></div>
+      <p class="camera__tip">خلّ صفحة اليوم كاملة داخل الإطار</p>
+    </div>
+    <div class="camera__bar pad-b-safe">
+      <button class="camera__side" id="btn-camera-cancel" type="button">إلغاء</button>
+      <button class="camera__shutter" id="btn-snap" type="button" aria-label="التقط الصورة">
+        <span class="camera__shutter-dot"></span>
+      </button>
+      <button class="camera__side hidden" id="btn-torch" type="button" aria-pressed="false">الفلاش</button>
+      <span class="camera__side" id="torch-spacer"></span>
+    </div>
+  </section>
+
+  <!-- ============ 3. PREVIEW ============ -->
+  <section class="screen" id="screen-preview" aria-label="مراجعة الصورة">
+    <div class="preview__photo">
+      <img id="preview-img" alt="الصورة الملتقطة للدفتر">
+    </div>
+    <div class="preview__actions pad pad-b-safe">
+      <button class="btn btn--primary btn--lg btn--block" id="btn-send" type="button">إرسال</button>
+      <button class="btn btn--ghost btn--block" id="btn-retake" type="button">إعادة التصوير</button>
+    </div>
+  </section>
+
+  <!-- ============ 4. SENDING ============
+       Blocking on purpose: send must not be pressable twice (guide 4.2). -->
+  <section class="screen" id="screen-sending" aria-label="جاري الإرسال" aria-busy="true">
+    <div class="state-center">
+      <span class="spinner spinner--lg" style="color: var(--accent)"></span>
+      <p class="state-center__title">جاري الإرسال…</p>
+      <p class="muted small">لا تسكّر التطبيق</p>
+    </div>
+  </section>
+
+  <!-- ============ 5. SENT ============
+       The last screen. There is nowhere further to go, and no figure here,
+       now or ever. -->
+  <section class="screen" id="screen-sent" aria-label="تم الإرسال">
+    <div class="state-center">
+      <div class="tick" aria-hidden="true">
+        <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      </div>
+      <p class="state-center__title state-center__title--big">تم الإرسال</p>
+      <button class="btn btn--ghost" id="btn-again" type="button">إرسال صورة ثانية</button>
+    </div>
+  </section>
+
+</div>
+
+<!-- [4.2] Pinned local copy; loaded before the app module (DEVIATIONS.md #19). -->
+<script src="vendor/supabase-2.117.2.js"></script>
+<script type="module" src="js/worker/main.js"></script>
+</body>
+</html>

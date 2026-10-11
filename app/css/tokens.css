@@ -1,0 +1,81 @@
+/* ============================================================
+   DESIGN TOKENS — the single source of truth for the look.
+   Change a value here and both apps follow. Never hard-code a
+   colour or a size anywhere else.
+   Visual direction: build guide, Section 4.5.
+   ============================================================ */
+
+:root {
+  /* ---- Brand ------------------------------------------------
+     One dark neutral + one accent. Everything else is a tint.  */
+  --accent:            #1F6F8B;   /* also the PWA theme colour */
+  --accent-strong:     #175668;
+  --accent-soft:       #E8F1F5;
+  --accent-line:       #BBD6E1;
+
+  --ink:               #16232A;   /* the dark neutral: headings, figures */
+  --ink-2:             #3D4E57;   /* body text */
+  --ink-3:             #6B7C85;   /* labels, captions */
+
+  --bg:                #F4F7F8;
+  --surface:           #FFFFFF;
+  --surface-2:         #FAFBFC;
+  --line:              #DDE5E9;
+  --line-strong:       #C4D0D6;
+
+  /* ---- Status only ------------------------------------------
+     Reserved for state. Do not use them for decoration.        */
+  --ok:                #17845A;
+  --ok-soft:           #E4F3EC;
+  --warn:              #A9690A;
+  --warn-soft:         #FBF0DE;
+  --danger:            #B3261E;
+  --danger-soft:       #FBE9E8;
+
+  /* ---- Typography ------------------------------------------- */
+  --font: 'IBM Plex Sans Arabic', 'Tajawal', 'Segoe UI', system-ui,
+          -apple-system, 'Helvetica Neue', sans-serif;
+  /* Latin digits are forced everywhere — see .num in base.css */
+  --font-num: 'IBM Plex Sans Arabic', system-ui, -apple-system, sans-serif;
+
+  --fs-display: 40px;   /* the day's total, the one number that matters */
+  --fs-h1:      24px;
+  --fs-h2:      19px;
+  --fs-body:    16px;
+  --fs-sm:      14px;
+  --fs-xs:      12.5px;
+
+  --lh-tight:   1.25;
+  --lh-body:    1.65;
+
+  /* ---- Space (4px base) ------------------------------------- */
+  --s-1:  4px;
+  --s-2:  8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --s-10: 40px;
+  --s-12: 48px;
+
+  /* ---- Shape ------------------------------------------------ */
+  --r-sm:  8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 22px;
+  --r-pill: 999px;
+
+  --shadow-1: 0 1px 2px rgba(22, 35, 42, .06), 0 1px 3px rgba(22, 35, 42, .05);
+  --shadow-2: 0 4px 14px rgba(22, 35, 42, .09);
+  --shadow-3: 0 10px 34px rgba(22, 35, 42, .16);
+
+  /* ---- Layout ----------------------------------------------- */
+  --app-max: 480px;          /* both apps are designed at 390pt wide */
+  --dash-max: 1080px;        /* owner dashboard may breathe on a tablet */
+  --tap: 48px;               /* minimum touch target */
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+
+  --ease: cubic-bezier(.2, .7, .3, 1);
+}

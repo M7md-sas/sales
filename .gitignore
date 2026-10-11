@@ -1,0 +1,13 @@
+# Not part of the delivered repository.
+# _internal/ holds the client spec (they already have it) and the original
+# v4.0 schema, which must never be run (DEVIATIONS.md #4).
+_internal/
+.claude/
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+
+# Print material and the packaged zip — handed over separately, not published.
+تسليم-العميل/
+حزمة-التسليم/

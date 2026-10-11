@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <!-- [4.2] Content-Security-Policy (DEVIATIONS.md #19). If the Supabase project
+       ever moves to a custom domain, add that domain to img-src and connect-src. -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' blob: data: https://*.supabase.co http://localhost:5174 http://127.0.0.1:5174; connect-src 'self' data: blob: https://*.supabase.co wss://*.supabase.co http://localhost:5174 http://127.0.0.1:5174; worker-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>لوحة المالك</title>
+
+  <meta name="theme-color" content="#1F6F8B">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="../icons/180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="اللوحة">
+  <meta name="robots" content="noindex, nofollow">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
+
+  <link rel="stylesheet" href="../css/tokens.css">
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <link rel="stylesheet" href="../css/owner.css">
+</head>
+
+<body>
+<div class="app app--wide" id="app">
+
+  <!-- ============ SIGN IN ============ -->
+  <section class="screen" id="screen-signin" aria-label="تسجيل الدخول">
+    <div id="signin-mount"></div>
+  </section>
+
+  <!-- ============ DASHBOARD ============ -->
+  <section class="screen" id="screen-dash">
+    <header class="topbar">
+      <button class="topbar__back hidden" id="btn-back" type="button" aria-label="رجوع">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+      </button>
+      <h1 class="grow truncate" id="view-title">قائمة المراجعة</h1>
+      <button class="topbar__action" id="btn-refresh" type="button" aria-label="تحديث">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="23 4 23 10 17 10"/>
+          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+        </svg>
+      </button>
+    </header>
+
+    <main class="view" id="view" tabindex="-1"></main>
+
+    <!-- The review badge must be impossible to miss (Section 12). -->
+    <nav class="tabbar" id="tabbar" aria-label="التنقل">
+      <a class="tabbar__tab" href="#/review" data-tab="review">
+        <span class="tabbar__icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M9 11l3 3L22 4"/>
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+          </svg>
+          <span class="count-badge hidden" id="review-badge">0</span>
+        </span>
+        <span>المراجعة</span>
+      </a>
+      <a class="tabbar__tab" href="#/today" data-tab="today">
+        <span class="tabbar__icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/>
+            <line x1="6" y1="20" x2="6" y2="16"/>
+          </svg>
+        </span>
+        <span>اليوم</span>
+      </a>
+      <a class="tabbar__tab" href="#/archive" data-tab="archive">
+        <span class="tabbar__icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="18" rx="2"/>
+            <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+        </span>
+        <span>الأرشيف</span>
+      </a>
+      <a class="tabbar__tab" href="#/monthly" data-tab="monthly">
+        <span class="tabbar__icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>
+          </svg>
+        </span>
+        <span>التقرير</span>
+      </a>
+      <a class="tabbar__tab" href="#/more" data-tab="more">
+        <span class="tabbar__icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/>
+          </svg>
+        </span>
+        <span>المزيد</span>
+      </a>
+    </nav>
+  </section>
+</div>
+
+<!-- Print-only block, filled by the export view. Guide 10.2 — the browser
+     shapes Arabic correctly, so we print rather than build a PDF by hand. -->
+<div class="print-area" id="print-area" aria-hidden="true"></div>
+
+<!-- [4.2] Pinned local copy; loaded before the app module (DEVIATIONS.md #19). -->
+<script src="../vendor/supabase-2.117.2.js"></script>
+<script type="module" src="../js/owner/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,105 @@
+/* ============================================================
+   BASE — reset, RTL, typography, numerals.
+   Loaded after tokens.css, before components.css.
+   ============================================================ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, h1, h2, h3, h4, p, figure, ul, ol, dl, dd, fieldset {
+  margin: 0;
+  padding: 0;
+}
+ul, ol { list-style: none; }
+
+html {
+  /* dir="rtl" lang="ar" are set on <html> in the markup — Appendix C. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  color: var(--ink-2);
+  background: var(--bg);
+  min-height: 100dvh;
+  overscroll-behavior-y: contain;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 { color: var(--ink); line-height: var(--lh-tight); font-weight: 600; }
+h1 { font-size: var(--fs-h1); }
+h2 { font-size: var(--fs-h2); }
+h3 { font-size: var(--fs-body); }
+
+a { color: var(--accent); text-decoration: none; }
+
+button, input, select, textarea {
+  font: inherit;
+  color: inherit;
+}
+button { cursor: pointer; background: none; border: 0; }
+
+img { max-width: 100%; display: block; }
+
+/* ---- Numerals ------------------------------------------------
+   Arabic UI, Western digits. Appendix C: "Numbers show as
+   Arabic-Indic digits" is a locale leak — this is the fix, and
+   the isolation keeps a figure from flipping around its ر.س.   */
+.num {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  direction: ltr;
+  unicode-bidi: isolate;
+  display: inline-block;
+}
+
+/* ---- Focus ---------------------------------------------------
+   Visible for keyboard users, invisible for taps.               */
+:focus { outline: none; }
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+/* ---- Helpers ------------------------------------------------- */
+.hidden { display: none !important; }
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.stack > * + * { margin-top: var(--s-4); }
+.stack-sm > * + * { margin-top: var(--s-2); }
+.stack-lg > * + * { margin-top: var(--s-6); }
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+.row-between { justify-content: space-between; }
+.grow { flex: 1 1 auto; min-width: 0; }
+
+.muted { color: var(--ink-3); }
+.small { font-size: var(--fs-sm); }
+.xs    { font-size: var(--fs-xs); }
+.center { text-align: center; }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}

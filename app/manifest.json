@@ -1,0 +1,18 @@
+{
+  "name": "مبيعات المحل",
+  "short_name": "المبيعات",
+  "description": "تصوير دفتر المبيعات اليومي وإرساله",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#1F6F8B",
+  "dir": "rtl",
+  "lang": "ar",
+  "icons": [
+    { "src": "icons/192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

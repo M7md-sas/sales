@@ -1,0 +1,433 @@
+/* ============================================================
+   COMPONENTS — shared by both apps.
+   Anything used by only one app belongs in worker.css / owner.css.
+   ============================================================ */
+
+/* ---------- App shell ---------- */
+.app {
+  max-width: var(--app-max);
+  margin-inline: auto;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+.app--wide { max-width: var(--dash-max); }
+
+.screen { display: none; flex: 1 1 auto; flex-direction: column; }
+.screen.is-active { display: flex; }
+
+.pad { padding: var(--s-5); }
+.pad-b-safe { padding-bottom: calc(var(--s-5) + var(--safe-b)); }
+
+/* ---------- Top bar ---------- */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: calc(var(--s-3) + var(--safe-t)) var(--s-4) var(--s-3);
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.topbar h1 { font-size: var(--fs-h2); }
+.topbar__back {
+  width: var(--tap); height: var(--tap);
+  margin-inline-start: calc(var(--s-3) * -1);
+  display: grid; place-items: center;
+  border-radius: var(--r-pill);
+  color: var(--ink-2);
+}
+.topbar__back:hover { background: var(--surface-2); }
+/* The back chevron is mirrored by the RTL flow, not by a second icon. */
+.topbar__back svg { transform: scaleX(-1); }
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  min-height: var(--tap);
+  padding: 0 var(--s-5);
+  border-radius: var(--r-md);
+  font-weight: 600;
+  font-size: var(--fs-body);
+  transition: background-color .15s var(--ease), transform .1s var(--ease);
+  user-select: none;
+}
+.btn:active:not(:disabled) { transform: scale(.985); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.btn--primary { background: var(--accent); color: #fff; }
+.btn--primary:hover:not(:disabled) { background: var(--accent-strong); }
+
+.btn--approve { background: var(--ok); color: #fff; }
+.btn--approve:hover:not(:disabled) { filter: brightness(.94); }
+
+.btn--ghost {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+}
+.btn--ghost:hover:not(:disabled) { background: var(--surface-2); }
+
+.btn--quiet { color: var(--accent); padding-inline: var(--s-3); }
+.btn--quiet:hover:not(:disabled) { background: var(--accent-soft); }
+
+.btn--danger { background: var(--danger); color: #fff; }
+
+.btn--block { width: 100%; }
+.btn--lg { min-height: 56px; font-size: 17px; border-radius: var(--r-lg); }
+
+/* ---------- Cards ---------- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: var(--s-5);
+  box-shadow: var(--shadow-1);
+}
+.card--flush { padding: 0; overflow: hidden; }
+.card--accent { border-color: var(--accent-line); background: var(--accent-soft); }
+
+.card__title {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--ink-3);
+  letter-spacing: .01em;
+}
+
+/* ---------- Status badges ----------
+   Green / amber / red are reserved for state. Guide 4.5. */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  padding: 3px var(--s-3);
+  border-radius: var(--r-pill);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  line-height: 1.7;
+  white-space: nowrap;
+}
+.badge--approved { background: var(--ok-soft);   color: var(--ok); }
+.badge--review   { background: var(--warn-soft); color: var(--warn); }
+.badge--pending  { background: var(--accent-soft); color: var(--accent-strong); }
+.badge--error    { background: var(--danger-soft); color: var(--danger); }
+.badge--dot::before {
+  content: '';
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* Count badge on the review-queue tab — Section 12 says this must be
+   impossible to miss when the owner opens the app. */
+.count-badge {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--r-pill);
+  background: var(--danger);
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 700;
+  display: inline-grid;
+  place-items: center;
+}
+
+/* ---------- Fields ---------- */
+.field { display: block; }
+.field__label {
+  display: block;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--ink-3);
+  margin-bottom: var(--s-2);
+}
+.input, .select {
+  width: 100%;
+  min-height: var(--tap);
+  padding: var(--s-2) var(--s-4);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  color: var(--ink);
+  transition: border-color .15s var(--ease), box-shadow .15s var(--ease);
+}
+.input:focus, .select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.input--amount {
+  font-size: 22px;
+  font-weight: 600;
+  text-align: start;
+  font-variant-numeric: tabular-nums;
+  direction: ltr;
+}
+.input--flagged { border-color: var(--warn); background: var(--warn-soft); }
+
+.field__hint { margin-top: var(--s-2); font-size: var(--fs-xs); color: var(--ink-3); }
+
+/* ---------- Figures ---------- */
+.figure-lg {
+  font-size: var(--fs-display);
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.1;
+  letter-spacing: -.01em;
+}
+.figure-md { font-size: var(--fs-h1); font-weight: 700; color: var(--ink); }
+.currency { font-size: .5em; font-weight: 600; color: var(--ink-3); margin-inline-start: 4px; }
+
+/* ---------- Photo ----------
+   "The photograph is the evidence in this system — give it real
+   space everywhere it appears, never a corner thumbnail." (4.5) */
+.photo {
+  position: relative;
+  width: 100%;
+  background: #0E1417;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  min-height: 200px;
+}
+.photo img {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  touch-action: pinch-zoom;
+}
+.photo--tall img { max-height: 62vh; }
+.photo__zoom {
+  position: absolute;
+  inset-block-end: var(--s-2);
+  inset-inline-end: var(--s-2);
+  padding: var(--s-1) var(--s-3);
+  border-radius: var(--r-pill);
+  background: rgba(0, 0, 0, .55);
+  color: #fff;
+  font-size: var(--fs-xs);
+  backdrop-filter: blur(6px);
+}
+.thumb {
+  width: 56px; height: 56px;
+  border-radius: var(--r-sm);
+  object-fit: cover;
+  background: var(--surface-2);
+  flex: none;
+}
+
+/* ---------- Lists ---------- */
+.list { border-radius: var(--r-lg); overflow: hidden; background: var(--surface);
+        border: 1px solid var(--line); box-shadow: var(--shadow-1); }
+.list__item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  width: 100%;
+  padding: var(--s-4);
+  text-align: start;
+  background: var(--surface);
+  transition: background-color .12s var(--ease);
+}
+.list__item + .list__item { border-top: 1px solid var(--line); }
+.list__item:hover { background: var(--surface-2); }
+.list__item--flag { box-shadow: inset 3px 0 0 var(--warn); }
+
+/* ---------- States ---------- */
+.empty {
+  padding: var(--s-12) var(--s-5);
+  text-align: center;
+  color: var(--ink-3);
+}
+.empty__icon {
+  width: 64px; height: 64px;
+  margin: 0 auto var(--s-4);
+  display: grid; place-items: center;
+  border-radius: var(--r-pill);
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+.empty__title { font-size: var(--fs-h2); color: var(--ink); margin-bottom: var(--s-2); }
+
+.spinner {
+  width: 22px; height: 22px;
+  border: 2.5px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+.spinner--lg { width: 40px; height: 40px; border-width: 3px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.skeleton {
+  background: linear-gradient(90deg, var(--line) 25%, var(--surface-2) 50%, var(--line) 75%);
+  background-size: 300% 100%;
+  animation: shimmer 1.3s infinite;
+  border-radius: var(--r-sm);
+}
+@keyframes shimmer { to { background-position: -300% 0; } }
+
+/* ---------- Offline banner ---------- */
+.banner {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  border-bottom: 1px solid rgba(169, 105, 10, .25);
+}
+.banner--danger { background: var(--danger-soft); color: var(--danger);
+                  border-bottom-color: rgba(179, 38, 30, .25); }
+
+/* ---------- Toast ---------- */
+.toast-host {
+  position: fixed;
+  inset-block-end: calc(var(--s-6) + var(--safe-b));
+  inset-inline: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+  padding-inline: var(--s-5);
+  z-index: 100;
+  pointer-events: none;
+}
+.toast {
+  max-width: 420px;
+  padding: var(--s-3) var(--s-5);
+  border-radius: var(--r-pill);
+  background: var(--ink);
+  color: #fff;
+  font-size: var(--fs-sm);
+  box-shadow: var(--shadow-3);
+  animation: toast-in .22s var(--ease);
+}
+.toast--error { background: var(--danger); }
+.toast--ok    { background: var(--ok); }
+@keyframes toast-in { from { opacity: 0; transform: translateY(10px); } }
+
+/* ---------- Sign in (both apps) ----------
+   [4.2] A password form replaced the six-digit keypad (DEVIATIONS.md #18). */
+.signin-screen {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--s-6);
+  padding: var(--s-6) var(--s-5) calc(var(--s-8) + var(--safe-b));
+  background: var(--surface);
+}
+.signin-head { text-align: center; }
+.signin-head__shop { font-size: var(--fs-h1); font-weight: 700; color: var(--ink); }
+.signin-head__hint { color: var(--ink-3); margin-top: var(--s-2); }
+
+.signin-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  max-width: 340px;
+  width: 100%;
+  margin-inline: auto;
+}
+.password-wrap { position: relative; }
+.password-wrap .input {
+  font-size: 20px;
+  direction: ltr;
+  text-align: start;
+  padding-inline-end: 76px;
+  letter-spacing: .02em;
+}
+.password-toggle {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: var(--s-2);
+  display: flex;
+  align-items: center;
+  padding-inline: var(--s-3);
+  color: var(--accent);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  background: none;
+  border: 0;
+}
+.password-wrap.is-error .input { border-color: var(--danger); animation: shake .4s; }
+@keyframes shake {
+  25% { transform: translateX(-6px); } 50% { transform: translateX(6px); }
+  75% { transform: translateX(-3px); }
+}
+
+.signin-error {
+  min-height: 22px;
+  text-align: center;
+  color: var(--danger);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+.signin-error.is-info { color: var(--ink-3); font-weight: 500; }
+
+/* Notice that stays until it is dismissed (worker: a photo that could not go). */
+.notice {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  border-bottom: 1px solid rgba(179, 38, 30, .25);
+}
+
+/* A whole view that could not load: never mistaken for "nothing here". */
+.load-failed { text-align: center; padding: var(--s-8) var(--s-5); }
+.load-failed__title { font-weight: 700; color: var(--danger); }
+
+/* ---------- Progress ---------- */
+.progress {
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--line);
+  overflow: hidden;
+}
+.progress__bar {
+  height: 100%;
+  background: var(--accent);
+  border-radius: var(--r-pill);
+  transition: width .3s var(--ease);
+}
+.progress__bar--ok { background: var(--ok); }
+
+/* ---------- Modal ---------- */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: var(--s-5);
+  background: rgba(22, 35, 42, .55);
+  backdrop-filter: blur(2px);
+}
+.modal__panel {
+  width: 100%;
+  max-width: 420px;
+  background: var(--surface);
+  border-radius: var(--r-xl);
+  padding: var(--s-6);
+  box-shadow: var(--shadow-3);
+  animation: toast-in .2s var(--ease);
+}
+
+/* A quiet button that should not pull the eye (worker sign-out). */
+.btn--quiet.muted { color: var(--ink-3); }
+.banner .btn, .notice .btn { white-space: nowrap; flex: none; }
