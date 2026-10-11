@@ -749,6 +749,26 @@ create policy "st_owner_read" on storage.objects for select to authenticated
 
 
 -- ============================================================
+--  Sign-ups closed at the database. Same effect as switching off
+--  "Allow new users to sign up", but it does not depend on that
+--  dashboard toggle saving: only the two app accounts may exist.
+--  Create them first (Authentication > Users), or with these emails.
+-- ============================================================
+create or replace function public.block_new_signups() returns trigger
+language plpgsql security definer set search_path = '' as $$
+begin
+  if new.email is null or new.email not in ('owner@shop.local', 'worker@shop.local') then
+    raise exception 'sign-ups are closed';
+  end if;
+  return new;
+end $$;
+revoke all on function public.block_new_signups() from public, anon, authenticated;
+drop trigger if exists block_new_signups on auth.users;
+create trigger block_new_signups before insert on auth.users
+  for each row execute function public.block_new_signups();
+
+
+-- ============================================================
 --  NEXT STEPS — see docs/الإعداد-خطوة-بخطوة.md for the full walkthrough.
 --
 --  1. Create the two users in Authentication > Users, then run
