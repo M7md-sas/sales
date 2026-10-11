@@ -26,8 +26,8 @@ const DEMO = (() => {
 })();
 
 export const CONFIG = {
-  SUPABASE_URL: DEMO ? 'http://localhost:5174' : 'https://YOUR-PROJECT-REF.supabase.co',
-  SUPABASE_ANON_KEY: DEMO ? 'demo-anon-key' : 'YOUR-ANON-KEY',
+  SUPABASE_URL: DEMO ? 'http://localhost:5174' : 'https://lxcupaosxgpcgtgoaspr.supabase.co',
+  SUPABASE_ANON_KEY: DEMO ? 'demo-anon-key' : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4Y3VwYW9zeGdwY2d0Z29hc3ByIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYzNjQzNjUsImV4cCI6MjEwMTk0MDM2NX0.NcBsT6-czrj6ZiwffCkqN12580BagZzyN9XAn9A-hvg',
   DEMO,
 
   /** Accounts created in Section 5.3 of the build guide. Nothing is ever mailed here. */
