@@ -311,8 +311,9 @@ def rpc_submit_photo(body):
     today = riyadh_today()
     wanted = body.get("p_entry_date")
     day = min(date.fromisoformat(wanted), today) if wanted else today
-    if day < today - timedelta(days=7):
+    if day < today - timedelta(days=7) and day.isoformat() not in RETAKES:
         return {"ok": False, "code": "bad_date"}
+    RETAKES.discard(day.isoformat())
     if not body.get("p_photo_path"):
         return {"ok": False, "code": "photo_required"}
     row = find(day.isoformat())
@@ -376,7 +377,30 @@ def rpc_storage_usage(body):
     return {"ok": True, "bytes": len(ENTRIES) * 280_000, "files": len(ENTRIES)}
 
 
+RETAKES = set()
+
+
+def rpc_reject_day(body):
+    """[4.3] Delete an unapproved day and ask the worker for a new photo."""
+    entry_date = body.get("p_entry_date")
+    row = find(entry_date)
+    if not row:
+        return {"ok": False, "code": "not_found"}
+    if row["status"] == "approved":
+        return {"ok": False, "code": "locked"}
+    ENTRIES.remove(row)
+    RETAKES.add(entry_date)
+    audit("reject", entry_date)
+    return {"ok": True}
+
+
+def rpc_pending_retakes(body):
+    return sorted(RETAKES)
+
+
 RPCS = {
+    "reject_day": rpc_reject_day,
+    "pending_retakes": rpc_pending_retakes,
     "get_monthly": rpc_get_monthly,
     "get_trend": rpc_get_trend,
     "approve_day": rpc_approve_day,

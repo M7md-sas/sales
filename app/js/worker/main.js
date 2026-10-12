@@ -13,7 +13,7 @@ import { todayRiyadh, longDate, shortDate, weekdayName } from '../core/format.js
 import { messageFor, withTimeout } from '../core/errors.js';
 import { signIn, signOut, getSession, onAuthChange } from '../core/auth.js';
 import { hasStoredSession } from '../core/supabase.js';
-import { submitPhoto } from '../data/submit.js';
+import { submitPhoto, pendingRetakes } from '../data/submit.js';
 import { CONFIG } from '../config.js';
 import { compressImage } from './capture.js';
 import { cameraSupported, startCamera, stopCamera, snap, toggleTorch } from './camera.js';
@@ -30,12 +30,20 @@ let photo = null;
  * has to wait offline; a live send lets the server decide the day.
  */
 let captureDate = todayRiyadh();
+/**
+ * [4.3] Set while the worker is photographing a day the owner sent back
+ * (DEVIATIONS.md #31). The photo is sent for that day, not today.
+ */
+let retakeDate = null;
 
 const els = {
   banner: $('#offline-banner'),
   bannerText: $('#offline-text'),
   bannerRetry: $('#offline-retry'),
   dropped: $('#dropped-notice'),
+  retake: $('#retake-notice'),
+  retakeText: $('#retake-text'),
+  hint: $('#capture-hint'),
   droppedText: $('#dropped-text'),
   weekday: $('#capture-weekday'),
   date: $('#capture-date'),
@@ -64,6 +72,7 @@ async function boot() {
   refreshBanner();
   refreshDropped();
   flushQueue();
+  refreshRetakes();
 }
 
 /**
@@ -83,6 +92,7 @@ function showSignIn(notice = '') {
       if (result.ok) {
         enterApp();
         flushQueue();
+        refreshRetakes();
       }
       return result;
     },
@@ -92,14 +102,16 @@ function showSignIn(notice = '') {
 
 function enterApp() {
   captureDate = todayRiyadh();
+  retakeDate = null;
   renderDate();
   showScreen('screen-capture');
 }
 
 function renderDate() {
-  const today = todayRiyadh();
-  setText(els.weekday, weekdayName(today));
-  setText(els.date, longDate(today).replace(`${weekdayName(today)} `, ''));
+  const day = retakeDate || todayRiyadh();
+  setText(els.weekday, weekdayName(day));
+  setText(els.date, longDate(day).replace(`${weekdayName(day)} `, ''));
+  setText(els.hint, retakeDate ? T.retakeHint(shortDate(retakeDate)) : T.workerHint);
 }
 
 /* ----------------------------------------------------------------- wiring */
@@ -122,6 +134,7 @@ function wire() {
   on($('#btn-signout'), 'click', onSignOut);
   on(els.bannerRetry, 'click', flushQueue);
   on($('#dropped-dismiss'), 'click', () => { clearDropped(); refreshDropped(); });
+  on($('#retake-go'), 'click', startRetake);
 
   on(window, 'online', flushQueue);
   on(window, 'offline', refreshBanner);
@@ -133,6 +146,7 @@ function wire() {
     if (document.visibilityState === 'visible') {
       renderDate();
       flushQueue();
+      refreshRetakes();
     }
   });
 
@@ -177,7 +191,12 @@ async function openCamera() {
 function closeCamera() {
   stopCamera();
   els.video.srcObject = null;
-  if ($('#screen-camera').classList.contains('is-active')) showScreen('screen-capture');
+  if ($('#screen-camera').classList.contains('is-active')) {
+    // [4.3] Backing out of the camera also backs out of a retake.
+    retakeDate = null;
+    renderDate();
+    showScreen('screen-capture');
+  }
 }
 
 async function onSnap() {
@@ -205,7 +224,7 @@ async function onFilePicked(event) {
 /** A photo from either source: compress it, then show the preview. */
 async function usePhoto(file) {
   // The day shown on screen when the photo is taken — kept for the queue.
-  captureDate = todayRiyadh();
+  captureDate = retakeDate || todayRiyadh();
 
   try {
     photo = await compressImage(file);
@@ -259,15 +278,18 @@ async function send() {
   // "sending… don't close the app" for minutes (DEVIATIONS.md #20).
   let result;
   try {
-    result = await withTimeout(submitPhoto({ date: null, blob: photo }), CONFIG.SEND_TIMEOUT_MS);
+    result = await withTimeout(submitPhoto({ date: retakeDate, blob: photo }), CONFIG.SEND_TIMEOUT_MS);
   } catch {
     result = { ok: false, code: 'timeout' };
   }
 
   if (result.ok) {
     discardPhoto();
+    retakeDate = null;
+    renderDate();
     showScreen('screen-sent');
     refreshBanner();
+    refreshRetakes();
     return;
   }
 
@@ -308,6 +330,8 @@ async function park({ quiet = false } = {}) {
     return;
   }
   discardPhoto();
+  retakeDate = null;
+  renderDate();
   showScreen('screen-capture');
   refreshBanner();
   if (!quiet) toast(T.offlineBanner, 'info');
@@ -328,6 +352,22 @@ function refreshBanner() {
   const waiting = pendingCount();
   show(els.banner, waiting > 0);
   if (waiting > 0) setText(els.bannerText, T.queueBanner(waiting));
+}
+
+/** [4.3] Days the owner sent back for a new photo (DEVIATIONS.md #31). */
+let retakes = [];
+async function refreshRetakes() {
+  if (!navigator.onLine) return;
+  retakes = await pendingRetakes();
+  show(els.retake, retakes.length > 0);
+  if (retakes.length) setText(els.retakeText, T.retakeBanner(retakes.map(shortDate).join('، ')));
+}
+
+function startRetake() {
+  if (!retakes.length) return;
+  retakeDate = retakes[0];
+  renderDate();
+  openCamera();
 }
 
 function refreshDropped() {

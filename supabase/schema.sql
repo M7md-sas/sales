@@ -120,6 +120,17 @@ create table if not exists public.audit_log (
 
 create index if not exists audit_log_at_idx on public.audit_log (at desc);
 
+-- [4.3] Days the owner deleted and sent back to the worker for a new photo
+-- (DEVIATIONS.md #31). No policy at all: the worker reaches it only through
+-- pending_retakes(), which returns dates and nothing else.
+create table if not exists public.retake_requests (
+  entry_date   date primary key,
+  requested_at timestamptz not null default now(),
+  requested_by uuid references auth.users (id) on delete set null
+);
+alter table public.retake_requests enable row level security;
+revoke all on public.retake_requests from anon, authenticated;
+
 
 -- ---------- 3. HELPER FUNCTIONS ----------
 create or replace function public.is_owner()
@@ -223,7 +234,10 @@ begin
     return json_build_object('ok', false, 'code', 'forbidden');
   end if;
 
-  if v_date < v_today - 7 then
+  -- [4.3] A day the owner sent back for a new photo is open to it however
+  -- old it is (DEVIATIONS.md #31).
+  if v_date < v_today - 7
+     and not exists (select 1 from retake_requests where entry_date = v_date) then
     return json_build_object('ok', false, 'code', 'bad_date');
   end if;
 
@@ -273,6 +287,7 @@ begin
       submitted_at    = now(),
       updated_at      = now()
     where entry_date = v_date;
+    delete from retake_requests where entry_date = v_date;
 
     -- Same reply as a first submission — he cannot learn a row existed.
     return json_build_object('ok', true, 'code', 'saved');
@@ -288,6 +303,7 @@ begin
     insert into audit_log (actor, action, entry_date)
     values (v_uid, 'create', v_date);
   end if;
+  delete from retake_requests where entry_date = v_date;
 
   return json_build_object('ok', true, 'code', 'saved');
 end;
@@ -544,6 +560,52 @@ begin
 end;
 $$;
 
+-- [4.3] Delete a day that is not approved and ask the worker for a new photo
+-- of it (DEVIATIONS.md #31). The whole row goes into the audit log first, so
+-- nothing is lost; the photo stays in storage.
+create or replace function public.reject_day(p_entry_date date)
+returns json
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_row public.daily_entries%rowtype;
+begin
+  if not public.is_owner() then
+    return json_build_object('ok', false, 'code', 'forbidden');
+  end if;
+
+  select * into v_row from daily_entries where entry_date = p_entry_date for update;
+  if not found then
+    return json_build_object('ok', false, 'code', 'not_found');
+  end if;
+  if v_row.status = 'approved' then
+    return json_build_object('ok', false, 'code', 'locked');
+  end if;
+
+  insert into audit_log (actor, action, entry_date, detail)
+  values (auth.uid(), 'reject', p_entry_date, to_jsonb(v_row));
+
+  delete from daily_entries where entry_date = p_entry_date;
+
+  insert into retake_requests (entry_date, requested_by)
+  values (p_entry_date, auth.uid())
+  on conflict (entry_date) do update set requested_at = now(), requested_by = excluded.requested_by;
+
+  return json_build_object('ok', true);
+end;
+$$;
+
+-- [4.3] The days the owner wants photographed again — dates only, oldest
+-- first. The one thing the worker app reads back, and it carries no figure.
+create or replace function public.pending_retakes()
+returns setof date
+language sql stable security definer set search_path = public
+as $$
+  select entry_date from retake_requests
+  where public.is_active_member()
+  order by entry_date;
+$$;
+
 -- Historical backfill / bulk import. No 7-day limit. Used for both
 -- the one-by-one "add old day" screen and the bulk photo importer.
 -- [4.3] Debt and repayment added at the end.
@@ -636,6 +698,8 @@ begin
 
   insert into audit_log (actor, action, entry_date)
   values (auth.uid(), 'owner_import', p_entry_date);
+  -- [4.3] The owner sending the page himself settles a retake request too.
+  delete from retake_requests where entry_date = p_entry_date;
 
   return json_build_object('ok', true, 'status', v_status);
 end;
@@ -777,6 +841,8 @@ grant execute on function public.submit_photo(date, text, text)                 
 grant execute on function public.approve_day(date, numeric, numeric, integer, integer, numeric, numeric) to authenticated;
 grant execute on function public.retry_extraction(date)                                  to authenticated;
 grant execute on function public.move_day(date, date)                                    to authenticated;
+grant execute on function public.reject_day(date)                                        to authenticated;
+grant execute on function public.pending_retakes()                                       to authenticated;
 grant execute on function public.storage_usage()                                         to authenticated;
 grant execute on function public.owner_import_day(date, text, numeric, numeric, integer, text, numeric, numeric) to authenticated;
 grant execute on function public.get_monthly(integer)                                    to authenticated;

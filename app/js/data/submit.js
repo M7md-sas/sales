@@ -50,3 +50,15 @@ export async function submitPhoto({ date, blob, notes = null }) {
 
   return result.ok ? { ok: true, code: 'saved' } : { ok: false, code: result.code || 'server_error' };
 }
+
+/**
+ * [4.3] The one thing the worker reads back: the dates the owner deleted and
+ * wants photographed again — a list of dates, never a figure (DEVIATIONS.md
+ * #31). A failure is an empty list; the request is still there next time.
+ *
+ * @returns {Promise<string[]>}
+ */
+export async function pendingRetakes() {
+  const result = await attempt(supabase.rpc('pending_retakes'));
+  return result.ok && Array.isArray(result.data) ? result.data.filter(Boolean) : [];
+}

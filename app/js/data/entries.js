@@ -159,6 +159,11 @@ export async function moveDay(from, to) {
   return attempt(supabase.rpc('move_day', { p_from: from, p_to: to }));
 }
 
+/** [4.3] Delete an unapproved day and ask the worker for a new photo of it. */
+export async function rejectDay(entryDate) {
+  return attempt(supabase.rpc('reject_day', { p_entry_date: entryDate }));
+}
+
 /** Change history for the day-detail screen. Owner-readable only. */
 export async function auditFor(entryDate) {
   return must(await attempt(

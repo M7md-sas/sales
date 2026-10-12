@@ -21,7 +21,7 @@ import { longDate, shortDate, weekdayName, money, amount, percent, todayRiyadh }
 import { normaliseDigits } from '../../core/password.js';
 import { CONFIG } from '../../config.js';
 import {
-  getDay, approveDay, reviewQueue, retryExtraction, moveDay, readingProblem,
+  getDay, approveDay, reviewQueue, retryExtraction, moveDay, readingProblem, rejectDay,
 } from '../../data/entries.js';
 import { trendFor } from '../../data/reports.js';
 import { photoBlock } from '../../ui/photo.js';
@@ -100,6 +100,7 @@ function fieldsPanel(day, remaining, ctx) {
     totalRow(),
     el('div', { id: 'f-average', class: 'hidden' }),
     approveButton(day, remaining, ctx),
+    rejectButton(day, remaining, ctx),
     modelReading(day),
     moveBlock(day),
   );
@@ -346,6 +347,34 @@ function approveButton(day, remaining, ctx) {
     else go('/review');
   });
 
+  return button;
+}
+
+/**
+ * [4.3] Delete the day and send it back to the worker for a new photo
+ * (DEVIATIONS.md #31). Not offered on an approved day — approving is final.
+ */
+function rejectButton(day, remaining, ctx) {
+  if (day.status === 'approved') return el('span', { class: 'hidden' });
+
+  const button = el('button', {
+    class: 'btn btn--ghost btn--block', type: 'button', text: T.rejectDay,
+    style: 'color:var(--danger)',
+  });
+  button.addEventListener('click', async () => {
+    if (!window.confirm(T.rejectConfirm(longDate(day.entry_date)))) return;
+    const restore = busy(button, T.loading);
+    const result = await rejectDay(day.entry_date);
+    restore();
+    if (!result.ok) {
+      toast(messageFor(result.code), 'error');
+      return;
+    }
+    toast(T.rejected, 'ok');
+    ctx.refreshBadge?.();
+    if (remaining.length) go(`/review/${remaining[0].entry_date}`);
+    else go('/review');
+  });
   return button;
 }
 
