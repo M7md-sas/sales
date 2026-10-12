@@ -76,6 +76,8 @@
         <span class="shutter__label">صوّر الدفتر</span>
       </button>
       <p class="capture__hint" id="capture-hint">صوّر صفحة اليوم من الدفتر كاملة، وخلّ الأرقام واضحة</p>
+      <!-- TEMP-GALLERY: testing only, remove before handover. -->
+      <button class="btn btn--ghost" id="btn-gallery" type="button">اختر صورة من الاستوديو (للتجربة)</button>
     </div>
 
     <footer class="capture__foot">
@@ -84,6 +86,8 @@
 
     <!-- capture="environment" is what opens the rear camera on iPhone. Appendix C. -->
     <input type="file" id="file-input" accept="image/*" capture="environment" hidden>
+    <!-- TEMP-GALLERY: no capture attribute, so the phone offers its gallery. -->
+    <input type="file" id="gallery-input" accept="image/*" hidden>
   </section>
 
   <!-- ============ 2b. IN-APP CAMERA ============

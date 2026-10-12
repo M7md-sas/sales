@@ -107,6 +107,9 @@ function renderDate() {
 function wire() {
   on($('#btn-capture'), 'click', openCamera);
   on(els.fileInput, 'change', onFilePicked);
+  // TEMP-GALLERY: testing only, remove before handover.
+  on($('#btn-gallery'), 'click', () => $('#gallery-input').click());
+  on($('#gallery-input'), 'change', onFilePicked);
   on(els.snap, 'click', onSnap);
   on($('#btn-camera-cancel'), 'click', closeCamera);
   on(els.torch, 'click', async () => {

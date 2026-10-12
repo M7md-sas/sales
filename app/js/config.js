@@ -67,8 +67,10 @@ export const CONFIG = {
      * in one import would only come back "reading failed", so the importer
      * stops here and the owner continues the next day. Check the real figure
      * for the chosen model in Google AI Studio → Rate limits, and set it here.
+     * gemini-3.5-flash-lite free tier: 500 RPD (checked 2026-10-12). 450
+     * leaves room for the worker's own sends and retries on the same day.
      */
-    DAILY_CAP: 200,
+    DAILY_CAP: 450,
   },
 
   /** [4.2] A send that has not finished after this long is parked for later. */

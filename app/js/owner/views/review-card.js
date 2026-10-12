@@ -77,7 +77,7 @@ export async function render(root, params, ctx) {
 
 function progressBar(remaining) {
   return el('div', { class: 'review-progress' }, [
-    el('span', { text: remaining > 0 ? T.approvedCountdown(remaining) : T.reviewEmpty }),
+    el('span', { text: remaining > 0 ? T.approvedCountdown(remaining) : T.reviewLastOne }),
   ]);
 }
 
