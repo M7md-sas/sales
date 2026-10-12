@@ -135,6 +135,8 @@ export const T = {
   // ---- Owner: figures ----
   cash: 'نقدي',
   mada: 'شبكة',
+  debt: 'ديون',
+  repaid: 'سداد ديون',
   total: 'الإجمالي',
   customers: 'الزبائن',
   todayTotal: 'إجمالي اليوم',

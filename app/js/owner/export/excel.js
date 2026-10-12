@@ -24,6 +24,8 @@ export async function exportExcel(rows, { from, to }) {
       'نقدي': Number(d.cash_total),
       'شبكة': Number(d.mada_total),
       'الإجمالي': Number(d.total),
+      'ديون': Number(d.debt_total || 0),
+      'سداد ديون': Number(d.repaid_total || 0),
       'الزبائن': d.customer_count ?? 0,
     }));
 
@@ -33,11 +35,13 @@ export async function exportExcel(rows, { from, to }) {
     'نقدي': sum(approved, 'cash_total'),
     'شبكة': sum(approved, 'mada_total'),
     'الإجمالي': sum(approved, 'total'),
+    'ديون': sum(approved, 'debt_total'),
+    'سداد ديون': sum(approved, 'repaid_total'),
     'الزبائن': sum(approved, 'customer_count'),
   });
 
   const sheet = XLSX.utils.json_to_sheet(data);
-  sheet['!cols'] = [{ wch: 12 }, { wch: 11 }, { wch: 11 }, { wch: 12 }, { wch: 9 }];
+  sheet['!cols'] = [{ wch: 12 }, { wch: 11 }, { wch: 11 }, { wch: 12 }, { wch: 11 }, { wch: 11 }, { wch: 9 }];
 
   const book = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(book, sheet, 'المبيعات');

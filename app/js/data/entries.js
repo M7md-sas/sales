@@ -19,7 +19,9 @@ import { attempt, must } from '../core/errors.js';
 
 const COLUMNS = `
   id, entry_date, cash_total, mada_total, total, customer_count,
+  debt_total, repaid_total,
   extracted_cash, extracted_mada, extracted_customers,
+  extracted_debt, extracted_repaid,
   extraction_confidence, extraction_error,
   photo_path, notes, status, source, revision,
   submitted_at, reviewed_at, updated_at
@@ -126,13 +128,15 @@ export async function listRange({ from, to, approvedOnly = false }) {
  * worker re-sent the day meanwhile, the server answers 'stale' instead of
  * pairing these figures with a photo the owner never saw (DEVIATIONS.md #11).
  */
-export async function approveDay({ entryDate, cash, mada, customers, revision = null }) {
+export async function approveDay({ entryDate, cash, mada, customers, debt = 0, repaid = 0, revision = null }) {
   return attempt(supabase.rpc('approve_day', {
     p_entry_date: entryDate,
     p_cash: Number(cash),
     p_mada: Number(mada),
     p_customer_count: customers === '' || customers === null ? null : Number(customers),
     p_revision: revision,
+    p_debt: Number(debt) || 0,
+    p_repaid: Number(repaid) || 0,
   }));
 }
 

@@ -65,6 +65,8 @@ function hero(day) {
       cell(T.cash, money(day.cash_total)),
       cell(T.mada, money(day.mada_total)),
       cell(T.customers, `<span class="num">${count(day.customer_count)}</span>`),
+      cell(T.debt, money(day.debt_total ?? 0)),
+      cell(T.repaid, money(day.repaid_total ?? 0)),
     ]),
   ]);
 }

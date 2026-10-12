@@ -30,7 +30,7 @@ export async function trendFor(entryDate) {
 export function summarise(rows) {
   const approved = rows.filter((r) => r.status === 'approved');
   if (!approved.length) {
-    return { days: 0, cash: 0, mada: 0, total: 0, customers: 0,
+    return { days: 0, cash: 0, mada: 0, debt: 0, repaid: 0, total: 0, customers: 0,
              perDay: null, perCustomer: null, best: null, worst: null };
   }
 
@@ -44,6 +44,8 @@ export function summarise(rows) {
     days: approved.length,
     cash: sum('cash_total'),
     mada: sum('mada_total'),
+    debt: sum('debt_total'),
+    repaid: sum('repaid_total'),
     total,
     customers,
     perDay: total / approved.length,

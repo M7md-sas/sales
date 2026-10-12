@@ -60,6 +60,8 @@ def build_entries():
         mada = round(random.uniform(60, 420), 2)
         customers = random.randint(3, 34)
         confidence = round(random.uniform(0.72, 0.99), 2)
+        debt = round(random.uniform(10, 90), 2) if random.random() < 0.3 else 0
+        repaid = round(random.uniform(10, 120), 2) if random.random() < 0.2 else 0
 
         rows.append({
             "id": f"row-{offset}",
@@ -68,6 +70,9 @@ def build_entries():
             "total": round(cash + mada, 2), "customer_count": customers,
             "extracted_cash": cash if random.random() > 0.15 else round(cash + 10, 2),
             "extracted_mada": mada, "extracted_customers": customers,
+            # [4.3] Some days carry debt sold on credit or an old debt paid back.
+            "debt_total": debt, "repaid_total": repaid,
+            "extracted_debt": debt, "extracted_repaid": repaid,
             "extraction_confidence": confidence, "extraction_error": None,
             "photo_path": f"{day.isoformat()}_mock.jpg", "notes": None,
             "status": "approved",
@@ -93,6 +98,10 @@ def build_entries():
             "customer_count": None if failed else random.randint(5, 25),
             "extracted_cash": cash, "extracted_mada": mada,
             "extracted_customers": None if failed else random.randint(5, 25),
+            "debt_total": None if failed else (35.5 if i == 0 else 0),
+            "repaid_total": None if failed else (50 if i == 0 else 0),
+            "extracted_debt": None if failed else (35.5 if i == 0 else 0),
+            "extracted_repaid": None if failed else (50 if i == 0 else 0),
             "extraction_confidence": confidence, "extraction_error": error,
             "photo_path": f"{day.isoformat()}_mock.jpg", "notes": None,
             "status": "needs_review", "source": "worker_upload", "revision": 1,
@@ -159,6 +168,7 @@ def simulate_extraction(entry_date, revision):
             row.update(cash_total=cash, mada_total=mada, total=round(cash + mada, 2),
                        customer_count=customers, extracted_cash=cash, extracted_mada=mada,
                        extracted_customers=customers, extraction_confidence=0.9,
+                       debt_total=0, repaid_total=0, extracted_debt=0, extracted_repaid=0,
                        extraction_error=None, status="needs_review", updated_at=now_iso())
     threading.Thread(target=run, daemon=True).start()
 
@@ -223,6 +233,8 @@ def rpc_get_monthly(body):
             "grand_total": round(total, 2),
             "customers": sum(r["customer_count"] or 0 for r in rows),
             "avg_per_day": round(total / len(rows), 2),
+            "debt_total": round(sum(r.get("debt_total") or 0 for r in rows), 2),
+            "repaid_total": round(sum(r.get("repaid_total") or 0 for r in rows), 2),
         })
     return out
 
@@ -258,6 +270,8 @@ def rpc_approve_day(body):
     row.update(
         cash_total=cash, mada_total=mada,
         customer_count=body.get("p_customer_count") or 0,
+        debt_total=as_number(body.get("p_debt")) or 0,
+        repaid_total=as_number(body.get("p_repaid")) or 0,
         total=round(cash + mada, 2),
         status="approved", reviewed_at=now_iso(), updated_at=now_iso(),
     )

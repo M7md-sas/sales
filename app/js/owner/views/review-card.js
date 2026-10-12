@@ -201,6 +201,11 @@ function fields(day) {
       amountField('cash', T.cash, day.cash_total, day),
       amountField('mada', T.mada, day.mada_total, day),
     ]),
+    // [4.3] Kept apart from the sales total (DEVIATIONS.md #27). Empty = none.
+    el('div', { class: 'review-fields__pair' }, [
+      amountField('debt', T.debt, day.debt_total, day),
+      amountField('repaid', T.repaid, day.repaid_total, day),
+    ]),
     el('label', { class: 'field' }, [
       el('span', { class: 'field__label', text: T.customers }),
       el('input', {
@@ -290,9 +295,13 @@ function approveButton(day, remaining, ctx) {
     const cash = readAmount('cash');
     const mada = readAmount('mada');
     const customers = $('#f-customers').value;
+    const debt = readAmount('debt');
+    const repaid = readAmount('repaid');
 
     if (cash === '' || mada === '' || Number.isNaN(cash) || Number.isNaN(mada) ||
-        cash > 999999.99 || mada > 999999.99 || Number(customers) > 999) {
+        Number.isNaN(debt) || Number.isNaN(repaid) ||
+        cash > 999999.99 || mada > 999999.99 || Number(debt) > 999999.99 ||
+        Number(repaid) > 999999.99 || Number(customers) > 999) {
       toast(messageFor('bad_amount'), 'error');
       return;
     }
@@ -301,6 +310,8 @@ function approveButton(day, remaining, ctx) {
     const result = await approveDay({
       entryDate: day.entry_date,
       cash, mada, customers,
+      debt: debt === '' ? 0 : debt,
+      repaid: repaid === '' ? 0 : repaid,
       revision: day.revision,
     });
     restore();
@@ -338,6 +349,8 @@ function modelReading(day) {
     el('div', { class: 'kv', style: 'margin-top:var(--s-2)' }, [
       el('dt', { text: T.cash }),  el('dd', { class: 'num', text: amount(day.extracted_cash) }),
       el('dt', { text: T.mada }),  el('dd', { class: 'num', text: amount(day.extracted_mada) }),
+      el('dt', { text: T.debt }),  el('dd', { class: 'num', text: amount(day.extracted_debt) }),
+      el('dt', { text: T.repaid }), el('dd', { class: 'num', text: amount(day.extracted_repaid) }),
       el('dt', { text: T.customers }), el('dd', { class: 'num', text: day.extracted_customers ?? '—' }),
     ]),
   ]);

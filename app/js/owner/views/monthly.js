@@ -123,6 +123,8 @@ function statsGrid(stats) {
   return el('div', { class: 'stats' }, [
     box(T.cash, money(stats.cash)),
     box(T.mada, money(stats.mada)),
+    box(T.debt, money(stats.debt)),
+    box(T.repaid, money(stats.repaid)),
     box(T.customers, `<span class="num">${count(stats.customers)}</span>`),
     box(T.daysRecorded, `<span class="num">${count(stats.days)}</span>`),
     box(T.perDay, money(stats.perDay)),

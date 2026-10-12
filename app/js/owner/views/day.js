@@ -52,6 +52,8 @@ function figuresCard(day) {
     el('div', { class: 'stats' }, [
       stat(T.cash, money(day.cash_total)),
       stat(T.mada, money(day.mada_total)),
+      stat(T.debt, money(day.debt_total ?? 0)),
+      stat(T.repaid, money(day.repaid_total ?? 0)),
       stat(T.customers, `<span class="num">${count(day.customer_count)}</span>`),
       stat(T.perCustomer, day.customer_count > 0
         ? money(Number(day.total) / Number(day.customer_count)) : '—'),
@@ -79,6 +81,8 @@ function comparisonCard(day) {
   const rows = [
     [T.cash, day.cash_total, day.extracted_cash, amount],
     [T.mada, day.mada_total, day.extracted_mada, amount],
+    [T.debt, day.debt_total, day.extracted_debt, amount],
+    [T.repaid, day.repaid_total, day.extracted_repaid, amount],
     [T.customers, day.customer_count, day.extracted_customers, count],
   ];
 

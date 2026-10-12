@@ -75,6 +75,19 @@ create table if not exists public.daily_entries (
   updated_at         timestamptz not null default now()
 );
 
+-- [4.3] The notebook's own conventions (client's decision, DEVIATIONS.md #27):
+-- amounts below the line drawn across the page are sold on credit (debt), and
+-- an amount with a mark beside it is an old debt being paid back. Both are
+-- kept apart from cash and mada, so `total` stays the money actually taken
+-- for today's sales. Added with ALTER so an existing database picks them up.
+alter table public.daily_entries
+  add column if not exists debt_total       numeric(10,2)
+    check (debt_total is null or (debt_total >= 0 and debt_total <= 999999.99)),
+  add column if not exists repaid_total     numeric(10,2)
+    check (repaid_total is null or (repaid_total >= 0 and repaid_total <= 999999.99)),
+  add column if not exists extracted_debt   numeric(10,2),
+  add column if not exists extracted_repaid numeric(10,2);
+
 create index if not exists daily_entries_date_idx   on public.daily_entries (entry_date desc);
 create index if not exists daily_entries_status_idx on public.daily_entries (status) where status <> 'approved';
 
@@ -245,7 +258,9 @@ begin
       notes           = p_notes,
       status          = 'pending_extraction',
       cash_total      = null, mada_total = null, customer_count = null,
+      debt_total      = null, repaid_total = null,
       extracted_cash  = null, extracted_mada = null, extracted_customers = null,
+      extracted_debt  = null, extracted_repaid = null,
       extraction_confidence = null, extraction_error = null,
       revision        = v_existing.revision + 1,
       submitted_by    = v_uid,
@@ -282,6 +297,9 @@ $$;
 -- a photo the worker has since replaced was written next to the new photo,
 -- and the new photo's own reading was then refused (DEVIATIONS.md #11).
 drop function if exists public.record_extraction(date, numeric, numeric, integer, numeric, text);
+-- [4.3] Debt and repayment added at the end with defaults, so an older
+-- extract-figures still calling without them keeps working.
+drop function if exists public.record_extraction(date, text, numeric, numeric, integer, numeric, text);
 create or replace function public.record_extraction(
   p_entry_date  date,
   p_photo_path  text,
@@ -289,7 +307,9 @@ create or replace function public.record_extraction(
   p_mada        numeric,
   p_customers   integer,
   p_confidence  numeric,
-  p_error       text default null
+  p_error       text default null,
+  p_debt        numeric default null,
+  p_repaid      numeric default null
 )
 returns json
 language plpgsql security definer set search_path = public
@@ -299,6 +319,8 @@ begin
     extracted_cash        = p_cash,
     extracted_mada        = p_mada,
     extracted_customers   = p_customers,
+    extracted_debt        = p_debt,
+    extracted_repaid      = p_repaid,
     extraction_confidence = p_confidence,
     extraction_error      = p_error,
     -- Pre-fill the working figures with the model's answer so the
@@ -308,6 +330,8 @@ begin
     cash_total     = p_cash,
     mada_total     = p_mada,
     customer_count = p_customers,
+    debt_total     = p_debt,
+    repaid_total   = p_repaid,
     status         = 'needs_review',
     updated_at     = now()
   where entry_date = p_entry_date
@@ -330,12 +354,16 @@ $$;
 -- new photo (DEVIATIONS.md #11). Null skips the check, for callers that are
 -- not a review card.
 drop function if exists public.approve_day(date, numeric, numeric, integer);
+-- [4.3] Debt and repayment added; empty means none.
+drop function if exists public.approve_day(date, numeric, numeric, integer, integer);
 create or replace function public.approve_day(
   p_entry_date date,
   p_cash       numeric,
   p_mada       numeric,
   p_customer_count integer,
-  p_revision   integer default null
+  p_revision   integer default null,
+  p_debt       numeric default null,
+  p_repaid     numeric default null
 )
 returns json
 language plpgsql security definer set search_path = public
@@ -353,6 +381,10 @@ begin
   if p_customer_count is not null and (p_customer_count < 0 or p_customer_count > 999) then
     return json_build_object('ok', false, 'code', 'bad_amount');
   end if;
+  if coalesce(p_debt, 0) < 0 or coalesce(p_debt, 0) > 999999.99
+     or coalesce(p_repaid, 0) < 0 or coalesce(p_repaid, 0) > 999999.99 then
+    return json_build_object('ok', false, 'code', 'bad_amount');
+  end if;
 
   select * into v_before from daily_entries where entry_date = p_entry_date for update;
   if not found then
@@ -366,6 +398,8 @@ begin
     cash_total     = p_cash,
     mada_total     = p_mada,
     customer_count = coalesce(p_customer_count, 0),
+    debt_total     = coalesce(p_debt, 0),
+    repaid_total   = coalesce(p_repaid, 0),
     status         = 'approved',
     reviewed_by    = auth.uid(),
     reviewed_at    = now(),
@@ -379,9 +413,11 @@ begin
           p_entry_date,
           jsonb_build_object(
             'before', jsonb_build_object('cash', v_before.cash_total, 'mada', v_before.mada_total,
+                                         'debt', v_before.debt_total, 'repaid', v_before.repaid_total,
                                          'customers', v_before.customer_count,
                                          'status', v_before.status),
             'after',  jsonb_build_object('cash', p_cash, 'mada', p_mada,
+                                         'debt', coalesce(p_debt, 0), 'repaid', coalesce(p_repaid, 0),
                                          'customers', coalesce(p_customer_count, 0))));
 
   return json_build_object('ok', true);
@@ -416,7 +452,9 @@ begin
   update daily_entries set
     status = 'pending_extraction',
     cash_total = null, mada_total = null, customer_count = null,
+    debt_total = null, repaid_total = null,
     extracted_cash = null, extracted_mada = null, extracted_customers = null,
+    extracted_debt = null, extracted_repaid = null,
     extraction_confidence = null, extraction_error = null,
     updated_at = now()
   where entry_date = p_entry_date;
@@ -469,13 +507,17 @@ $$;
 
 -- Historical backfill / bulk import. No 7-day limit. Used for both
 -- the one-by-one "add old day" screen and the bulk photo importer.
+-- [4.3] Debt and repayment added at the end.
+drop function if exists public.owner_import_day(date, text, numeric, numeric, integer, text);
 create or replace function public.owner_import_day(
   p_entry_date date,
   p_photo_path text default null,
   p_cash       numeric default null,
   p_mada       numeric default null,
   p_customer_count integer default null,
-  p_notes      text default null
+  p_notes      text default null,
+  p_debt       numeric default null,
+  p_repaid     numeric default null
 )
 returns json
 language plpgsql security definer set search_path = public
@@ -504,9 +546,12 @@ begin
 
   insert into daily_entries
     (entry_date, photo_path, cash_total, mada_total, customer_count,
+     debt_total, repaid_total,
      notes, status, source, submitted_by, reviewed_by, reviewed_at)
   values
     (p_entry_date, coalesce(p_photo_path, 'none'), p_cash, p_mada, p_customer_count,
+     case when v_status = 'approved' then coalesce(p_debt, 0) end,
+     case when v_status = 'approved' then coalesce(p_repaid, 0) end,
      p_notes, v_status, 'owner_import', auth.uid(),
      case when v_status = 'approved' then auth.uid() end,
      case when v_status = 'approved' then now() end)
@@ -523,6 +568,12 @@ begin
                           else excluded.mada_total end,
     customer_count = case when excluded.status = 'pending_extraction' then null
                           else excluded.customer_count end,
+    debt_total     = excluded.debt_total,
+    repaid_total   = excluded.repaid_total,
+    extracted_debt   = case when excluded.status = 'pending_extraction'
+                            then null else daily_entries.extracted_debt end,
+    extracted_repaid = case when excluded.status = 'pending_extraction'
+                            then null else daily_entries.extracted_repaid end,
     notes          = coalesce(excluded.notes, daily_entries.notes),
     status         = excluded.status,
     revision       = daily_entries.revision + 1,
@@ -551,6 +602,8 @@ begin
 end;
 $$;
 
+-- [4.3] Debt and repayment columns added; a changed return type needs a drop.
+drop function if exists public.get_monthly(integer);
 create or replace function public.get_monthly(p_year integer)
 returns table (
   month_start   date,
@@ -559,7 +612,9 @@ returns table (
   mada_total    numeric,
   grand_total   numeric,
   customers     bigint,
-  avg_per_day   numeric
+  avg_per_day   numeric,
+  debt_total    numeric,
+  repaid_total  numeric
 )
 language plpgsql security definer set search_path = public
 as $$
@@ -572,7 +627,8 @@ begin
   select date_trunc('month', e.entry_date)::date,
          count(*),
          sum(e.cash_total), sum(e.mada_total), sum(e.total),
-         sum(e.customer_count)::bigint, round(avg(e.total), 2)
+         sum(e.customer_count)::bigint, round(avg(e.total), 2),
+         coalesce(sum(e.debt_total), 0), coalesce(sum(e.repaid_total), 0)
   from daily_entries e
   where extract(year from e.entry_date) = p_year
     and e.status = 'approved'
@@ -679,11 +735,11 @@ grant usage, select on all sequences in schema public to authenticated;
 revoke execute on all functions in schema public from public, anon;
 
 grant execute on function public.submit_photo(date, text, text)                         to authenticated;
-grant execute on function public.approve_day(date, numeric, numeric, integer, integer)  to authenticated;
+grant execute on function public.approve_day(date, numeric, numeric, integer, integer, numeric, numeric) to authenticated;
 grant execute on function public.retry_extraction(date)                                  to authenticated;
 grant execute on function public.move_day(date, date)                                    to authenticated;
 grant execute on function public.storage_usage()                                         to authenticated;
-grant execute on function public.owner_import_day(date, text, numeric, numeric, integer, text) to authenticated;
+grant execute on function public.owner_import_day(date, text, numeric, numeric, integer, text, numeric, numeric) to authenticated;
 grant execute on function public.get_monthly(integer)                                    to authenticated;
 grant execute on function public.get_trend(date)                                         to authenticated;
 grant execute on function public.is_owner()                                              to authenticated;
@@ -705,7 +761,7 @@ grant execute on function public.today_riyadh()                                 
 --
 -- Revoking from PUBLIC is what actually closes it. Revoking from anon and
 -- authenticated alone would leave the inherited PUBLIC grant in place.
-revoke execute on function public.record_extraction(date, text, numeric, numeric, integer, numeric, text)
+revoke execute on function public.record_extraction(date, text, numeric, numeric, integer, numeric, text, numeric, numeric)
   from public, anon, authenticated;
 
 -- Same reasoning: these two are for the Edge Functions only.

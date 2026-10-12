@@ -24,6 +24,8 @@ export function printRange(rows, { from, to, shopName }) {
     cash: sum(approved, 'cash_total'),
     mada: sum(approved, 'mada_total'),
     total: sum(approved, 'total'),
+    debt: sum(approved, 'debt_total'),
+    repaid: sum(approved, 'repaid_total'),
     customers: sum(approved, 'customer_count'),
   };
 
@@ -36,7 +38,7 @@ export function printRange(rows, { from, to, shopName }) {
       <thead>
         <tr>
           <th>التاريخ</th><th>${T.cash}</th><th>${T.mada}</th>
-          <th>${T.total}</th><th>${T.customers}</th>
+          <th>${T.total}</th><th>${T.debt}</th><th>${T.repaid}</th><th>${T.customers}</th>
         </tr>
       </thead>
       <tbody>
@@ -46,6 +48,8 @@ export function printRange(rows, { from, to, shopName }) {
             <td>${amount(d.cash_total)}</td>
             <td>${amount(d.mada_total)}</td>
             <td>${amount(d.total)}</td>
+            <td>${amount(d.debt_total ?? 0)}</td>
+            <td>${amount(d.repaid_total ?? 0)}</td>
             <td>${count(d.customer_count)}</td>
           </tr>`).join('')}
       </tbody>
@@ -55,6 +59,8 @@ export function printRange(rows, { from, to, shopName }) {
           <td>${amount(totals.cash)}</td>
           <td>${amount(totals.mada)}</td>
           <td>${amount(totals.total)}</td>
+          <td>${amount(totals.debt)}</td>
+          <td>${amount(totals.repaid)}</td>
           <td>${count(totals.customers)}</td>
         </tr>
       </tfoot>
