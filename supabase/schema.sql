@@ -88,6 +88,12 @@ alter table public.daily_entries
   add column if not exists extracted_debt   numeric(10,2),
   add column if not exists extracted_repaid numeric(10,2);
 
+-- [4.3] Client's decision (DEVIATIONS.md #30): a repayment is money taken in
+-- today, so it counts in the day's total. SET EXPRESSION needs Postgres 17.
+alter table public.daily_entries
+  alter column total set expression as
+    (coalesce(cash_total,0) + coalesce(mada_total,0) + coalesce(repaid_total,0));
+
 create index if not exists daily_entries_date_idx   on public.daily_entries (entry_date desc);
 create index if not exists daily_entries_status_idx on public.daily_entries (status) where status <> 'approved';
 
@@ -353,12 +359,11 @@ begin
     return json_build_object('ok', false);
   end if;
 
-  -- [4.3] Move the day to the date written on the page — only a week back at
-  -- most, never into the future, and only into an empty date, so nothing is
-  -- ever overwritten. A taken date leaves the day where it is and tells the
-  -- owner, who can compare the two and move it by hand.
-  if p_page_date is not null and p_page_date <> p_entry_date
-     and p_page_date between p_entry_date - 7 and public.today_riyadh() then
+  -- [4.3] Move the day to the date written on the page, whatever it is
+  -- (DEVIATIONS.md #30). The one thing that stops it is a date that already
+  -- has a page: nothing is ever overwritten, so the day stays where it is and
+  -- the owner is told, and can compare the two and move it by hand.
+  if p_page_date is not null and p_page_date <> p_entry_date then
     if not exists (select 1 from daily_entries where entry_date = p_page_date) then
       update daily_entries set entry_date = p_page_date, updated_at = now()
       where entry_date = p_entry_date;

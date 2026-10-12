@@ -272,7 +272,8 @@ def rpc_approve_day(body):
         customer_count=body.get("p_customer_count") or 0,
         debt_total=as_number(body.get("p_debt")) or 0,
         repaid_total=as_number(body.get("p_repaid")) or 0,
-        total=round(cash + mada, 2),
+        # [4.3] A repayment counts in the day's total (DEVIATIONS.md #30).
+        total=round(cash + mada + (as_number(body.get("p_repaid")) or 0), 2),
         status="approved", reviewed_at=now_iso(), updated_at=now_iso(),
     )
     audit("correct" if before == "approved" else "approve", row["entry_date"])

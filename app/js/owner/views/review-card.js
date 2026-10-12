@@ -280,12 +280,14 @@ function totalRow() {
 function recalcTotal() {
   const cash = Number($('#f-cash')?.value || 0);
   const mada = Number($('#f-mada')?.value || 0);
+  // [4.3] A repayment counts in the day's total (DEVIATIONS.md #30).
+  const repaid = Number($('#f-repaid')?.value || 0);
+  const total = cash + mada + repaid;
   const node = $('#f-total');
-  if (node) node.innerHTML = money(cash + mada);
+  if (node) node.innerHTML = money(total);
 
   const hint = $('#f-average');
   if (!hint) return;
-  const total = cash + mada;
   const off = average && total > 0 ? Math.round(((total - average) / average) * 100) : 0;
   if (Math.abs(off) >= 50) {
     hint.className = 'confidence confidence--low';
