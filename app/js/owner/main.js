@@ -27,6 +27,7 @@ import * as bulkImport from './views/import.js';
 import * as exportView from './views/export.js';
 import * as settingsView from './views/settings.js';
 import * as more from './views/more.js';
+import * as captureToday from './views/capture-today.js';
 
 /* -------------------------------------------------------------- routes */
 
@@ -37,6 +38,7 @@ const ROUTES = [
   ['/archive',       archive,     'archive'],
   ['/day/:date',     dayDetail,   'archive'],
   ['/monthly',       monthly,     'monthly'],
+  ['/capture',       captureToday,'more'],
   ['/import',        bulkImport,  'more'],
   ['/export',        exportView,  'more'],
   ['/settings',      settingsView,'more'],

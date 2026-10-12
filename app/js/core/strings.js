@@ -173,6 +173,15 @@ export const T = {
 
   // ---- Owner: bulk import ----
   bulkImport: 'استيراد دفاتر قديمة',
+  // [4.3] The owner sends today's page himself (DEVIATIONS.md #28).
+  captureToday: 'صوّر صفحة اليوم',
+  captureTodayHint: 'لو العامل مو موجود اليوم، صوّر صفحة الدفتر أو اخترها من الاستوديو. تنقرأ وتطلع لك في المراجعة مثل صورة العامل.',
+  captureTodayReplaces: 'فيه صورة لليوم من قبل — صورتك بتحل محلها',
+  captureTodayLocked: 'اليوم معتمد — ما تقدر ترسل صورة ثانية له',
+  captureCamera: 'صوّر بالكاميرا',
+  captureGallery: 'اختر من الاستوديو',
+  captureTodaySent: 'تم الإرسال — بتطلع في المراجعة بعد ما تنقرأ',
+  captureTodayNote: 'أرسلها المالك',
   bulkPick: 'اختر الصور',
   bulkPickHint: 'تقدر تختار عشرات الصور مرة وحدة، أو تسحب مجلد كامل هنا',
   bulkAssignDates: 'حدّد تاريخ كل صورة',
