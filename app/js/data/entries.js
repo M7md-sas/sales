@@ -174,12 +174,24 @@ export async function auditFor(entryDate) {
  * The Edge Function writes 'extraction_failed:<code>' when it could not read
  * the photo and 'warning:<tags>' when it read it but something did not add up.
  *
- * @returns {{failed: string|null, warning: boolean}}
+ * [4.3] `dateTaken` is the date written on the page when the day could not be
+ * moved there because that date already has a photo (DEVIATIONS.md #29).
+ *
+ * @returns {{failed: string|null, warning: boolean, dateTaken: string|null}}
  */
 export function readingProblem(day) {
   const text = String(day?.extraction_error || '');
-  if (!text) return { failed: null, warning: false };
-  if (text.startsWith('warning:')) return { failed: null, warning: true };
+  if (!text) return { failed: null, warning: false, dateTaken: null };
+  if (text.startsWith('warning:')) {
+    const tags = text.slice('warning:'.length).split(',');
+    const taken = tags.find((t) => t.startsWith('date_taken_'));
+    return {
+      failed: null,
+      // A taken date alone is not a doubt about the figures.
+      warning: tags.some((t) => !t.startsWith('date_taken_')),
+      dateTaken: taken ? taken.slice('date_taken_'.length) : null,
+    };
+  }
   const code = text.replace(/^extraction_failed:\s*/, '').split(/[:\s]/)[0] || 'unknown';
-  return { failed: code, warning: false };
+  return { failed: code, warning: false, dateTaken: null };
 }

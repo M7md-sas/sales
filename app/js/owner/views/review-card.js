@@ -94,6 +94,7 @@ function fieldsPanel(day, remaining, ctx) {
       }),
     ]),
     confidenceNote(day),
+    dateTakenNote(day),
     retryBlock(day),
     fields(day),
     totalRow(),
@@ -143,6 +144,17 @@ function confidenceNote(day) {
     return note('ok', `قراءة واضحة (${percent(c)})`);
   }
   return el('span', { class: 'hidden' });
+}
+
+/**
+ * [4.3] The page says another date, and that date already has a photo, so
+ * the day was left where it was sent (DEVIATIONS.md #29). The move block
+ * below the card is the way to settle it once the owner has compared them.
+ */
+function dateTakenNote(day) {
+  const { dateTaken } = readingProblem(day);
+  if (!dateTaken || day.status === 'approved') return el('span', { class: 'hidden' });
+  return note('low', T.pageDateTaken(longDate(dateTaken)));
 }
 
 function note(kind, text) {

@@ -300,6 +300,10 @@ drop function if exists public.record_extraction(date, numeric, numeric, integer
 -- [4.3] Debt and repayment added at the end with defaults, so an older
 -- extract-figures still calling without them keeps working.
 drop function if exists public.record_extraction(date, text, numeric, numeric, integer, numeric, text);
+drop function if exists public.record_extraction(date, text, numeric, numeric, integer, numeric, text, numeric, numeric);
+-- [4.3] p_page_date is the date written on the page itself. The client's
+-- decision (DEVIATIONS.md #29): that date wins over the moment the photo was
+-- sent, so a page sent after midnight stays on the day it belongs to.
 create or replace function public.record_extraction(
   p_entry_date  date,
   p_photo_path  text,
@@ -309,11 +313,14 @@ create or replace function public.record_extraction(
   p_confidence  numeric,
   p_error       text default null,
   p_debt        numeric default null,
-  p_repaid      numeric default null
+  p_repaid      numeric default null,
+  p_page_date   date default null
 )
 returns json
 language plpgsql security definer set search_path = public
 as $$
+declare
+  v_moved_to date;
 begin
   update daily_entries set
     extracted_cash        = p_cash,
@@ -342,7 +349,34 @@ begin
     -- pipeline must not be able to undo it.
     and status = 'pending_extraction';
 
-  return json_build_object('ok', found);
+  if not found then
+    return json_build_object('ok', false);
+  end if;
+
+  -- [4.3] Move the day to the date written on the page — only a week back at
+  -- most, never into the future, and only into an empty date, so nothing is
+  -- ever overwritten. A taken date leaves the day where it is and tells the
+  -- owner, who can compare the two and move it by hand.
+  if p_page_date is not null and p_page_date <> p_entry_date
+     and p_page_date between p_entry_date - 7 and public.today_riyadh() then
+    if not exists (select 1 from daily_entries where entry_date = p_page_date) then
+      update daily_entries set entry_date = p_page_date, updated_at = now()
+      where entry_date = p_entry_date;
+      insert into audit_log (action, entry_date, detail)
+      values ('move_page_date', p_page_date,
+              jsonb_build_object('from', p_entry_date, 'to', p_page_date));
+      v_moved_to := p_page_date;
+    else
+      update daily_entries set
+        extraction_error = case
+          when extraction_error like 'warning:%'
+            then extraction_error || ',date_taken_' || p_page_date
+          else 'warning:date_taken_' || p_page_date end
+      where entry_date = p_entry_date;
+    end if;
+  end if;
+
+  return json_build_object('ok', true, 'moved_to', v_moved_to);
 end;
 $$;
 
@@ -761,7 +795,7 @@ grant execute on function public.today_riyadh()                                 
 --
 -- Revoking from PUBLIC is what actually closes it. Revoking from anon and
 -- authenticated alone would leave the inherited PUBLIC grant in place.
-revoke execute on function public.record_extraction(date, text, numeric, numeric, integer, numeric, text, numeric, numeric)
+revoke execute on function public.record_extraction(date, text, numeric, numeric, integer, numeric, text, numeric, numeric, date)
   from public, anon, authenticated;
 
 -- Same reasoning: these two are for the Edge Functions only.
