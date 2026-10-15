@@ -5,7 +5,7 @@
  * The monthly target is the only target left in the product; the daily one
  * was removed because a single day is too noisy to judge. Approved days only.
  */
-import { el, $ } from '../../core/dom.js';
+import { el, $, busy } from '../../core/dom.js';
 import { T } from '../../core/strings.js';
 import {
   money, count, amount, monthLabel, monthEnd, shortDate, todayRiyadh,
@@ -13,6 +13,10 @@ import {
 import { listRange } from '../../data/entries.js';
 import { monthlyTotals, summarise } from '../../data/reports.js';
 import { monthlyTarget } from '../../data/settings.js';
+import { listExpenses, addExpense, deleteExpense } from '../../data/expenses.js';
+import { normaliseDigits } from '../../core/password.js';
+import { messageFor } from '../../core/errors.js';
+import { toast } from '../../ui/toast.js';
 import { go } from '../router.js';
 import { loadFailed } from '../../ui/load-failed.js';
 
@@ -59,11 +63,12 @@ async function load(ctx) {
 
   const from = `${selectedMonth}-01`;
   const to = monthEnd(from);
-  let rows, months;
+  let rows, months, expenses;
   try {
-    [rows, months] = await Promise.all([
+    [rows, months, expenses] = await Promise.all([
       listRange({ from, to, approvedOnly: true }),
       monthlyTotals(selectedMonth.slice(0, 4)),
+      listExpenses(selectedMonth),
     ]);
   } catch {
     body.innerHTML = '';
@@ -75,6 +80,9 @@ async function load(ctx) {
   const target = monthlyTarget(ctx.settings);
 
   body.innerHTML = '';
+  // [4.3] Income, expenses and what is left come first, and show even in a
+  // month with no approved day yet — an expense can arrive before the sales.
+  body.append(financeCard(stats.total, expenses), expensesCard(expenses, ctx));
   if (!stats.days) {
     body.append(el('div', { class: 'empty' }, [
       el('p', { class: 'empty__title', text: T.noDataYet }),
@@ -89,6 +97,100 @@ async function load(ctx) {
     extremes(stats),
     yearTable(months),
   );
+}
+
+/** [4.3] What came in, what went out, and what is left (DEVIATIONS.md #32). */
+function financeCard(income, expenses) {
+  const spent = expenses.reduce((sum, x) => sum + Number(x.amount || 0), 0);
+  const left = income - spent;
+  return el('div', { class: 'stats' }, [
+    box(T.income, money(income)),
+    box(T.expenses, money(spent)),
+    el('div', { class: 'stat', style: 'grid-column:1 / -1' }, [
+      el('div', { class: 'stat__label', text: T.remaining }),
+      el('div', {
+        class: 'stat__value figure-md',
+        style: left < 0 ? 'color:var(--danger)' : '',
+        html: money(left),
+      }),
+    ]),
+  ]);
+}
+
+/**
+ * [4.3] The month's expenses and the form to add one: what it is, which
+ * month, how much. No day — these are monthly by nature.
+ */
+function expensesCard(expenses, ctx) {
+  const what = el('input', {
+    class: 'input', type: 'text', maxlength: '200', autocomplete: 'off',
+    placeholder: T.expenseWhatHint,
+  });
+  const month = el('select', { class: 'select' },
+    options().map(({ value, label }) => el('option', { value, selected: value === selectedMonth }, label)));
+  const howMuch = el('input', {
+    class: 'input input--amount', type: 'text', inputmode: 'decimal', autocomplete: 'off',
+    maxlength: '10',
+    oninput: (e) => {
+      // Arabic digits on an Arabic keypad, as in the review card.
+      let v = normaliseDigits(e.target.value).replace(/[٫,]/g, '.').replace(/[^\d.]/g, '');
+      const [whole, ...rest] = v.split('.');
+      v = rest.length ? `${whole}.${rest.join('').slice(0, 2)}` : whole;
+      if (v !== e.target.value) e.target.value = v;
+    },
+  });
+  const add = el('button', { class: 'btn btn--primary btn--block', type: 'button', text: T.expenseAdd });
+
+  add.addEventListener('click', async () => {
+    const description = what.value.trim();
+    const value = Number(howMuch.value);
+    if (!description) { toast(T.expenseMissing, 'error'); return; }
+    if (!howMuch.value || !Number.isFinite(value) || value <= 0 || value > 999999.99) {
+      toast(messageFor('bad_amount'), 'error');
+      return;
+    }
+    const restore = busy(add, T.loading);
+    const result = await addExpense({ month: month.value, description, amount: value });
+    restore();
+    if (!result.ok) { toast(messageFor(result.code), 'error'); return; }
+    toast(T.expenseAdded, 'ok');
+    // Show the month the expense went into, so it is visibly there.
+    selectedMonth = month.value;
+    const picker = $('#monthly-picker');
+    if (picker) picker.value = selectedMonth;
+    await load(ctx);
+  });
+
+  const list = expenses.length
+    ? el('div', { class: 'list' }, expenses.map((x) => el('div', { class: 'list__item' }, [
+        el('div', { class: 'grow', text: x.description }),
+        el('div', { class: 'day-row__total', html: money(x.amount) }),
+        el('button', {
+          class: 'btn btn--quiet small', type: 'button', text: '✕',
+          style: 'color:var(--danger)', 'aria-label': T.expenseDeleteConfirm(x.description),
+          onclick: async () => {
+            if (!window.confirm(T.expenseDeleteConfirm(x.description))) return;
+            const result = await deleteExpense(x.id);
+            if (!result.ok) { toast(messageFor(result.code), 'error'); return; }
+            toast(T.expenseDeleted, 'ok');
+            await load(ctx);
+          },
+        }),
+      ])))
+    : el('p', { class: 'small muted', text: T.expensesNone });
+
+  return el('div', { class: 'card stack' }, [
+    el('div', { class: 'card__title', text: `${T.expenses} — ${monthLabel(`${selectedMonth}-01`)}` }),
+    list,
+    el('label', { class: 'field' }, [el('span', { class: 'field__label', text: T.expenseWhat }), what]),
+    el('div', { class: 'review-fields__pair' }, [
+      el('label', { class: 'field' }, [el('span', { class: 'field__label', text: T.expenseMonth }), month]),
+      el('label', { class: 'field' }, [
+        el('span', { class: 'field__label', text: `${T.expenseAmount} (${T.currency})` }), howMuch,
+      ]),
+    ]),
+    add,
+  ]);
 }
 
 function targetCard(total, target) {

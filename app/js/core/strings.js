@@ -129,6 +129,20 @@ export const T = {
     : n === 2 ? 'باقي يومين للمراجعة'
     : n <= 10 ? `باقي ${n} أيام للمراجعة` : `باقي ${n} يوم للمراجعة`),
   reviewLastOne: 'هذا آخر يوم بانتظار المراجعة',
+  // [4.3] DEVIATIONS.md #32
+  income: 'الدخل',
+  expenses: 'المصروفات',
+  remaining: 'المتبقي',
+  expenseWhat: 'وش المصروف',
+  expenseWhatHint: 'مثلاً: راتب العامل، كهرباء، تجديد أوراق',
+  expenseMonth: 'الشهر',
+  expenseAmount: 'المبلغ',
+  expenseAdd: 'أضف المصروف',
+  expenseAdded: 'انضاف المصروف',
+  expenseDeleted: 'انحذف المصروف',
+  expenseDeleteConfirm: (what) => `تحذف «${what}»؟`,
+  expensesNone: 'ما فيه مصروفات مسجّلة لهذا الشهر',
+  expenseMissing: 'اكتب وش المصروف',
   // [4.3] DEVIATIONS.md #31
   rejectDay: 'حذف وطلب إعادة تصوير',
   rejectConfirm: (date) => `تحذف صورة ${date} وتطلب من العامل يصوّرها من جديد؟`,

@@ -378,6 +378,32 @@ def rpc_storage_usage(body):
 
 
 RETAKES = set()
+# [4.3] Monthly expenses (DEVIATIONS.md #32).
+EXPENSES = [
+    {"id": 1, "month": f"{riyadh_today().isoformat()[:7]}-01", "description": "راتب العامل",
+     "amount": 1500, "created_at": now_iso()},
+]
+
+
+def rpc_add_expense(body):
+    description = (body.get("p_description") or "").strip()
+    amount = as_number(body.get("p_amount"))
+    if not description or not body.get("p_month"):
+        return {"ok": False, "code": "bad_input"}
+    if amount is None or amount <= 0 or amount > 999999.99:
+        return {"ok": False, "code": "bad_amount"}
+    new_id = max([x["id"] for x in EXPENSES] or [0]) + 1
+    EXPENSES.append({"id": new_id, "month": body["p_month"][:7] + "-01", "description": description,
+                     "amount": round(amount, 2), "created_at": now_iso()})
+    return {"ok": True, "id": new_id}
+
+
+def rpc_delete_expense(body):
+    row = next((x for x in EXPENSES if x["id"] == body.get("p_id")), None)
+    if not row:
+        return {"ok": False, "code": "not_found"}
+    EXPENSES.remove(row)
+    return {"ok": True}
 
 
 def rpc_reject_day(body):
@@ -400,6 +426,8 @@ def rpc_pending_retakes(body):
 
 RPCS = {
     "reject_day": rpc_reject_day,
+    "add_expense": rpc_add_expense,
+    "delete_expense": rpc_delete_expense,
     "pending_retakes": rpc_pending_retakes,
     "get_monthly": rpc_get_monthly,
     "get_trend": rpc_get_trend,
@@ -414,6 +442,7 @@ RPCS = {
 TABLES = {
     "daily_entries": lambda: ENTRIES,
     "settings": lambda: SETTINGS,
+    "monthly_expenses": lambda: EXPENSES,
     "profiles": lambda: PROFILES,
     "audit_log": lambda: AUDIT,
 }

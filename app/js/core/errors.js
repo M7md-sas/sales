@@ -21,6 +21,7 @@ const MESSAGES = {
   // approve_day / owner_import_day / retry_extraction / move_day / get_*
   forbidden:      'ما عندك صلاحية لهذا الإجراء',
   bad_amount:     'المبلغ غير صحيح',
+  bad_input:      'تأكد من البيانات المكتوبة',
   not_found:      'ما لقينا هذا اليوم',
   stale:          T.staleCard,
   date_taken:     T.dateTaken,

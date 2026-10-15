@@ -23,7 +23,7 @@
  */
 // [4.2] Bump this whenever the SHELL list changes. Every file is network-first
 // anyway, so a forgotten bump costs an extra download, never stale code.
-const CACHE = 'shop-sales-v4';
+const CACHE = 'shop-sales-v5';
 
 // [4.2] Every script the two apps load, including the pinned library copy.
 // Before, no JS at all was pre-cached and the library came from another site
@@ -53,6 +53,7 @@ const SHELL = [
   './js/core/strings.js',
   './js/core/supabase.js',
   './js/data/entries.js',
+  './js/data/expenses.js',
   './js/data/imports.js',
   './js/data/photos.js',
   './js/data/reports.js',

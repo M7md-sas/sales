@@ -131,6 +131,24 @@ create table if not exists public.retake_requests (
 alter table public.retake_requests enable row level security;
 revoke all on public.retake_requests from anon, authenticated;
 
+-- [4.3] Monthly expenses — rent renewals, the worker's salary, electricity
+-- (DEVIATIONS.md #32). Entered against a month, never a day, and taken off
+-- that month's income in the report. The owner reads it; writes go through
+-- add_expense / delete_expense so each one lands in the audit log.
+create table if not exists public.monthly_expenses (
+  id          bigint generated always as identity primary key,
+  month       date not null check (month = date_trunc('month', month)::date),
+  description text not null check (length(trim(description)) between 1 and 200),
+  amount      numeric(10,2) not null check (amount > 0 and amount <= 999999.99),
+  created_at  timestamptz not null default now(),
+  created_by  uuid references auth.users (id) on delete set null
+);
+create index if not exists monthly_expenses_month_idx on public.monthly_expenses (month);
+alter table public.monthly_expenses enable row level security;
+revoke all on public.monthly_expenses from anon, authenticated;
+grant select on public.monthly_expenses to authenticated;
+-- Its read policy is with the others, after is_owner() exists.
+
 
 -- ---------- 3. HELPER FUNCTIONS ----------
 create or replace function public.is_owner()
@@ -197,6 +215,10 @@ create policy "s_owner_all" on public.settings for all
 
 drop policy if exists "a_owner_read" on public.audit_log;
 create policy "a_owner_read" on public.audit_log for select using (public.is_owner());
+
+-- [4.3] Expenses: the owner reads; writes only through the functions below.
+drop policy if exists "x_owner_read" on public.monthly_expenses;
+create policy "x_owner_read" on public.monthly_expenses for select using (public.is_owner());
 
 
 -- ---------- 5. WORKER ENTRY POINT ----------
@@ -595,6 +617,62 @@ begin
 end;
 $$;
 
+-- [4.3] Add one expense to a month (DEVIATIONS.md #32). Any date in the
+-- month is accepted and stored as the month's first day.
+create or replace function public.add_expense(p_month date, p_description text, p_amount numeric)
+returns json
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_id bigint;
+  v_month date := date_trunc('month', p_month)::date;
+begin
+  if not public.is_owner() then
+    return json_build_object('ok', false, 'code', 'forbidden');
+  end if;
+  if p_month is null or p_description is null or length(trim(p_description)) = 0
+     or length(trim(p_description)) > 200 then
+    return json_build_object('ok', false, 'code', 'bad_input');
+  end if;
+  if p_amount is null or p_amount <= 0 or p_amount > 999999.99 then
+    return json_build_object('ok', false, 'code', 'bad_amount');
+  end if;
+
+  insert into monthly_expenses (month, description, amount, created_by)
+  values (v_month, trim(p_description), round(p_amount, 2), auth.uid())
+  returning id into v_id;
+
+  insert into audit_log (actor, action, entry_date, detail)
+  values (auth.uid(), 'expense_add', v_month,
+          jsonb_build_object('id', v_id, 'description', trim(p_description), 'amount', round(p_amount, 2)));
+
+  return json_build_object('ok', true, 'id', v_id);
+end;
+$$;
+
+create or replace function public.delete_expense(p_id bigint)
+returns json
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_row public.monthly_expenses%rowtype;
+begin
+  if not public.is_owner() then
+    return json_build_object('ok', false, 'code', 'forbidden');
+  end if;
+
+  delete from monthly_expenses where id = p_id returning * into v_row;
+  if not found then
+    return json_build_object('ok', false, 'code', 'not_found');
+  end if;
+
+  insert into audit_log (actor, action, entry_date, detail)
+  values (auth.uid(), 'expense_delete', v_row.month, to_jsonb(v_row));
+
+  return json_build_object('ok', true);
+end;
+$$;
+
 -- [4.3] The days the owner wants photographed again — dates only, oldest
 -- first. The one thing the worker app reads back, and it carries no figure.
 create or replace function public.pending_retakes()
@@ -843,6 +921,8 @@ grant execute on function public.retry_extraction(date)                         
 grant execute on function public.move_day(date, date)                                    to authenticated;
 grant execute on function public.reject_day(date)                                        to authenticated;
 grant execute on function public.pending_retakes()                                       to authenticated;
+grant execute on function public.add_expense(date, text, numeric)                         to authenticated;
+grant execute on function public.delete_expense(bigint)                                   to authenticated;
 grant execute on function public.storage_usage()                                         to authenticated;
 grant execute on function public.owner_import_day(date, text, numeric, numeric, integer, text, numeric, numeric) to authenticated;
 grant execute on function public.get_monthly(integer)                                    to authenticated;
