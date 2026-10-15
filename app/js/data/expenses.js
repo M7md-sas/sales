@@ -17,6 +17,25 @@ export async function listExpenses(month) {
   ), []);
 }
 
+/**
+ * Every expense of every month the range touches, oldest first — for the
+ * exports. An expense belongs to a whole month, so a range that starts or
+ * ends mid-month still carries that month's expenses in full.
+ *
+ * @param {string} from 'YYYY-MM-DD'
+ * @param {string} to   'YYYY-MM-DD'
+ */
+export async function listExpensesBetween(from, to) {
+  return must(await attempt(
+    supabase.from('monthly_expenses')
+      .select('id, month, description, amount, created_at')
+      .gte('month', `${from.slice(0, 7)}-01`)
+      .lte('month', to)
+      .order('month', { ascending: true })
+      .order('created_at', { ascending: true })
+  ), []);
+}
+
 /** @param {{month: string, description: string, amount: number}} expense — month 'YYYY-MM' */
 export async function addExpense({ month, description, amount }) {
   return attempt(supabase.rpc('add_expense', {

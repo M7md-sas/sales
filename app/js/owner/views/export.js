@@ -6,6 +6,7 @@ import { el, $, busy } from '../../core/dom.js';
 import { T } from '../../core/strings.js';
 import { todayRiyadh, monthStart, money, count } from '../../core/format.js';
 import { listRange } from '../../data/entries.js';
+import { listExpensesBetween } from '../../data/expenses.js';
 import { exportExcel } from '../export/excel.js';
 import { printRange } from '../export/print.js';
 import { toast } from '../../ui/toast.js';
@@ -25,6 +26,7 @@ export async function render(root, _params, ctx) {
         dateField('to', T.exportTo, today),
       ]),
       el('p', { class: 'xs muted', text: T.exportNote }),
+      el('p', { class: 'xs muted', text: T.exportExpensesNote }),
       el('div', { id: 'export-preview' }),
     ]),
     el('div', { class: 'stack' }, [
@@ -91,8 +93,11 @@ async function runExcel(button) {
   const { from, to } = range();
   const restore = busy(button, T.loading);
   try {
-    const rows = await listRange({ from, to, approvedOnly: true });
-    const result = await exportExcel(rows, { from, to });
+    const [rows, expenses] = await Promise.all([
+      listRange({ from, to, approvedOnly: true }),
+      listExpensesBetween(from, to),
+    ]);
+    const result = await exportExcel(rows, { from, to, expenses });
     toast(result.ok ? T.saved : T.exportEmpty, result.ok ? 'ok' : 'error');
   } catch (error) {
     toast(messageFor(error?.code || 'unreachable'), 'error');
@@ -103,13 +108,16 @@ async function runExcel(button) {
 
 async function runPrint(ctx) {
   const { from, to } = range();
-  let rows;
+  let rows, expenses;
   try {
-    rows = await listRange({ from, to, approvedOnly: true });
+    [rows, expenses] = await Promise.all([
+      listRange({ from, to, approvedOnly: true }),
+      listExpensesBetween(from, to),
+    ]);
   } catch (error) {
     toast(messageFor(error?.code || 'unreachable'), 'error');
     return;
   }
-  const result = printRange(rows, { from, to, shopName: ctx.settings?.shop_name });
+  const result = printRange(rows, { from, to, shopName: ctx.settings?.shop_name, expenses });
   if (!result.ok) toast(T.exportEmpty, 'error');
 }

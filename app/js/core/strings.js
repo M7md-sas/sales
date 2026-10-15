@@ -143,6 +143,7 @@ export const T = {
   expenseDeleteConfirm: (what) => `تحذف «${what}»؟`,
   expensesNone: 'ما فيه مصروفات مسجّلة لهذا الشهر',
   expenseMissing: 'اكتب وش المصروف',
+  exportExpensesNote: 'المصروفات تنحسب لكل شهر داخل المدة كامل، حتى لو المدة تبدأ أو تخلص في نصه',
   // [4.3] DEVIATIONS.md #31
   rejectDay: 'حذف وطلب إعادة تصوير',
   rejectConfirm: (date) => `تحذف صورة ${date} وتطلب من العامل يصوّرها من جديد؟`,

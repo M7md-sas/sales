@@ -10,10 +10,10 @@
  * The layout follows the daily tally sheet already supplied to the client.
  */
 import { T } from '../../core/strings.js';
-import { amount, longDate, shortDate, count } from '../../core/format.js';
+import { amount, longDate, shortDate, count, monthLabel } from '../../core/format.js';
 import { esc } from '../../core/dom.js';
 
-export function printRange(rows, { from, to, shopName }) {
+export function printRange(rows, { from, to, shopName, expenses = [] }) {
   const approved = rows
     .filter((r) => r.status === 'approved')
     .sort((a, b) => a.entry_date.localeCompare(b.entry_date));
@@ -28,6 +28,9 @@ export function printRange(rows, { from, to, shopName }) {
     repaid: sum(approved, 'repaid_total'),
     customers: sum(approved, 'customer_count'),
   };
+
+  // [4.3] DEVIATIONS.md #32
+  const spent = sum(expenses, 'amount');
 
   document.getElementById('print-area').innerHTML = `
     <div class="print-head">
@@ -64,6 +67,27 @@ export function printRange(rows, { from, to, shopName }) {
           <td>${count(totals.customers)}</td>
         </tr>
       </tfoot>
+    </table>
+    ${expenses.length ? `
+    <table class="print-table">
+      <thead>
+        <tr><th>${T.expenseMonth}</th><th>${T.expenseWhat}</th><th>${T.expenseAmount}</th></tr>
+      </thead>
+      <tbody>
+        ${expenses.map((x) => `
+          <tr>
+            <td>${monthLabel(x.month)}</td>
+            <td>${esc(x.description)}</td>
+            <td>${amount(x.amount)}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>` : ''}
+    <table class="print-table">
+      <tbody>
+        <tr><td>${T.income}</td><td>${amount(totals.total)}</td></tr>
+        <tr><td>${T.expenses}</td><td>${amount(spent)}</td></tr>
+        <tr><td>${T.remaining}</td><td>${amount(totals.total - spent)}</td></tr>
+      </tbody>
     </table>
     <p class="print-foot">${T.exportNote} — ${T.daysRecorded}: ${approved.length}</p>
   `;

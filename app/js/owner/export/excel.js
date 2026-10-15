@@ -9,8 +9,9 @@
  * every load — most sessions never export anything.
  */
 import { T } from '../../core/strings.js';
+import { monthLabel } from '../../core/format.js';
 
-export async function exportExcel(rows, { from, to }) {
+export async function exportExcel(rows, { from, to, expenses = [] }) {
   const approved = rows.filter((r) => r.status === 'approved');
   if (!approved.length) return { ok: false, code: 'empty' };
 
@@ -40,11 +41,30 @@ export async function exportExcel(rows, { from, to }) {
     'الزبائن': sum(approved, 'customer_count'),
   });
 
+  // [4.3] Income, expenses and what is left, under the totals (DEVIATIONS.md #32).
+  const income = sum(approved, 'total');
+  const spent = sum(expenses, 'amount');
+  data.push({}, 
+    { 'التاريخ': T.income, 'الإجمالي': income },
+    { 'التاريخ': T.expenses, 'الإجمالي': spent },
+    { 'التاريخ': T.remaining, 'الإجمالي': Number((income - spent).toFixed(2)) });
+
   const sheet = XLSX.utils.json_to_sheet(data);
   sheet['!cols'] = [{ wch: 12 }, { wch: 11 }, { wch: 11 }, { wch: 12 }, { wch: 11 }, { wch: 11 }, { wch: 9 }];
 
   const book = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(book, sheet, 'المبيعات');
+  if (expenses.length) {
+    const list = expenses.map((x) => ({
+      [T.expenseMonth]: monthLabel(x.month),
+      [T.expenseWhat]: x.description,
+      [T.expenseAmount]: Number(x.amount),
+    }));
+    list.push({ [T.expenseMonth]: T.total, [T.expenseAmount]: spent });
+    const expenseSheet = XLSX.utils.json_to_sheet(list);
+    expenseSheet['!cols'] = [{ wch: 14 }, { wch: 28 }, { wch: 12 }];
+    XLSX.utils.book_append_sheet(book, expenseSheet, T.expenses);
+  }
   XLSX.writeFile(book, `sales_${from}_${to}.xlsx`);
 
   return { ok: true, count: approved.length };
