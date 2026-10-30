@@ -6,10 +6,12 @@
  * extracted_cash to cash_total across every row tells you immediately
  * whether it is worth tuning the prompt or switching models."
  */
-import { el } from '../../core/dom.js';
+import { el, busy } from '../../core/dom.js';
 import { T } from '../../core/strings.js';
 import { longDate, money, amount, count, dateTime } from '../../core/format.js';
-import { getDay, auditFor } from '../../data/entries.js';
+import { getDay, auditFor, deleteDay } from '../../data/entries.js';
+import { messageFor } from '../../core/errors.js';
+import { toast } from '../../ui/toast.js';
 import { photoBlock } from '../../ui/photo.js';
 import { go } from '../router.js';
 
@@ -36,7 +38,29 @@ export async function render(root, params) {
       class: 'btn btn--ghost btn--block', type: 'button', text: T.editFigures,
       onclick: () => go(`/review/${day.entry_date}`),
     }),
+    deleteButton(day),
   ].filter(Boolean)));
+}
+
+/** [4.4] Remove a day approved by mistake. Confirmed, then logged server-side. */
+function deleteButton(day) {
+  const button = el('button', {
+    class: 'btn btn--ghost btn--block', type: 'button', text: T.deleteDay,
+    style: 'color:var(--danger)',
+  });
+  button.addEventListener('click', async () => {
+    if (!window.confirm(T.deleteConfirm(longDate(day.entry_date)))) return;
+    const restore = busy(button, T.loading);
+    const result = await deleteDay(day.entry_date);
+    restore();
+    if (!result.ok) {
+      toast(messageFor(result.code), 'error');
+      return;
+    }
+    toast(T.deleted, 'ok');
+    go('/archive', { replace: true });
+  });
+  return button;
 }
 
 function figuresCard(day) {
@@ -139,6 +163,7 @@ function historyCard(history) {
     owner_import: 'استيراد',
     retry_extraction: 'إعادة قراءة',
     move: 'نقل تاريخ',
+    delete: 'حذف',
   };
 
   return el('div', { class: 'card' }, [

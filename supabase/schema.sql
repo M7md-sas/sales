@@ -617,6 +617,35 @@ begin
 end;
 $$;
 
+-- [4.4] Delete a day outright, approved or not — for a day approved by
+-- mistake (wrong date, wrong page). Unlike reject_day it does not ask the
+-- worker for a new photo. The whole row goes into the audit log first, so
+-- nothing is lost beyond recovery. The photo stays in storage.
+create or replace function public.delete_day(p_entry_date date)
+returns json
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_row public.daily_entries%rowtype;
+begin
+  if not public.is_owner() then
+    return json_build_object('ok', false, 'code', 'forbidden');
+  end if;
+
+  select * into v_row from daily_entries where entry_date = p_entry_date for update;
+  if not found then
+    return json_build_object('ok', false, 'code', 'not_found');
+  end if;
+
+  insert into audit_log (actor, action, entry_date, detail)
+  values (auth.uid(), 'delete', p_entry_date, to_jsonb(v_row));
+
+  delete from daily_entries where entry_date = p_entry_date;
+
+  return json_build_object('ok', true);
+end;
+$$;
+
 -- [4.3] Add one expense to a month (DEVIATIONS.md #32). Any date in the
 -- month is accepted and stored as the month's first day.
 create or replace function public.add_expense(p_month date, p_description text, p_amount numeric)
@@ -920,6 +949,7 @@ grant execute on function public.approve_day(date, numeric, numeric, integer, in
 grant execute on function public.retry_extraction(date)                                  to authenticated;
 grant execute on function public.move_day(date, date)                                    to authenticated;
 grant execute on function public.reject_day(date)                                        to authenticated;
+grant execute on function public.delete_day(date)                                        to authenticated;
 grant execute on function public.pending_retakes()                                       to authenticated;
 grant execute on function public.add_expense(date, text, numeric)                         to authenticated;
 grant execute on function public.delete_expense(bigint)                                   to authenticated;

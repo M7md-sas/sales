@@ -164,6 +164,11 @@ export async function rejectDay(entryDate) {
   return attempt(supabase.rpc('reject_day', { p_entry_date: entryDate }));
 }
 
+/** [4.4] Delete any day, approved included — no retake request. */
+export async function deleteDay(entryDate) {
+  return attempt(supabase.rpc('delete_day', { p_entry_date: entryDate }));
+}
+
 /** Change history for the day-detail screen. Owner-readable only. */
 export async function auditFor(entryDate) {
   return must(await attempt(
